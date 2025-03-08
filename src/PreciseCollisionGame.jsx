@@ -28,7 +28,7 @@ const PreciseCollisionGame = () => {
 
   // Collision detection
   const logoWidthRef = useRef(80);
-  const logoHitscanRef = useRef(null);
+  const logoHitscanRef = useRef(null); // This is our inspection line
   const packageWidthRef = useRef(48);
 
   // Hover & wiggle states
@@ -38,8 +38,7 @@ const PreciseCollisionGame = () => {
   // Floating notifications
   const [floatingHits, setFloatingHits] = useState([]);
 
-  // We'll cycle through these positions for calm (countermeasure) notifications.
-  // You can tweak these coords to match your arcs. Each entry is { top: px, left: someCSSValue }.
+  // Define 6 fixed positions for calm (countermeasure) notifications in two rough arcs
   const calmPositions = [
     { top: 40, left: 'calc(50% - 120px)' },
     { top: 60, left: 'calc(50% + 100px)' },
@@ -48,7 +47,6 @@ const PreciseCollisionGame = () => {
     { top: 120, left: 'calc(50% - 60px)' },
     { top: 140, left: 'calc(50% + 80px)' },
   ];
-  // We'll keep an index that cycles through calmPositions in a "criss-cross" sequence.
   const calmIndexRef = useRef(0);
 
   // Toggle flags
@@ -103,11 +101,12 @@ const PreciseCollisionGame = () => {
     };
   }, [inspecting, autoPilot]);
 
-  // Update hitscan on resize
+  // Update inspection line (hitscan) on resize
   useEffect(() => {
     const updateLogoHitscan = () => {
       if (gameAreaRef.current) {
         const rect = gameAreaRef.current.getBoundingClientRect();
+        // Use the center of the game area as the inspection line
         logoHitscanRef.current = rect.width / 2;
       }
     };
@@ -134,7 +133,7 @@ const PreciseCollisionGame = () => {
   // Helper to spawn floating notifications
   const spawnHitIndicator = (isMalicious) => {
     if (!isMalicious) {
-      // SAFE (arc style), lasts 5000ms
+      // SAFE notification (arc style) lasting 5000ms
       const id = Date.now() + Math.random();
       setFloatingHits((curr) => [
         ...curr,
@@ -153,7 +152,9 @@ const PreciseCollisionGame = () => {
       return;
     }
 
-    // Malicious => spawn THREAT (arc) + calm countermeasure
+    // Malicious notification: spawn two notifications
+
+    // 1) Red "THREAT" indicator (arc style) lasting 5000ms
     const threatId = Date.now() + Math.random();
     setFloatingHits((curr) => [
       ...curr,
@@ -170,7 +171,8 @@ const PreciseCollisionGame = () => {
       setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== threatId));
     }, 5000);
 
-    // Calm countermeasure: pick the next position from calmPositions
+    // 2) Calm blue countermeasure notification lasting 6000ms,
+    // using fixed positions from calmPositions.
     const cmId = Date.now() + Math.random();
     const countermeasures = [
       'SQL Injection',
@@ -192,14 +194,11 @@ const PreciseCollisionGame = () => {
       'Token Verified',
       'Security Alert',
     ];
-    const cmText = countermeasures[Math.floor(Math.random() * countermeasures.length)];
-
+    const cmText =
+      countermeasures[Math.floor(Math.random() * countermeasures.length)];
     const posIndex = calmIndexRef.current;
     const chosenPos = calmPositions[posIndex];
-
-    // Move the index forward (wrapping around)
     calmIndexRef.current = (posIndex + 1) % calmPositions.length;
-
     setFloatingHits((curr) => [
       ...curr,
       {
@@ -217,7 +216,7 @@ const PreciseCollisionGame = () => {
     }, 6000);
   };
 
-  // Helper for arc offset (for SAFE/THREAT)
+  // Helper for generating a random arc offset (for arc notifications)
   function getRandomArcOffset() {
     const angleDegrees = Math.random() * 30 - 15;
     const angleRad = (angleDegrees * Math.PI) / 180;
@@ -232,7 +231,7 @@ const PreciseCollisionGame = () => {
       const deltaTime = timestamp - lastTimeRef.current;
       lastTimeRef.current = timestamp;
 
-      // spawn packages
+      // Spawn packages
       if (timestamp >= nextPackageTimeRef.current && gameActive) {
         const lastPackage = packages[packages.length - 1];
         const minDist = packageWidthRef.current + 5;
@@ -273,7 +272,6 @@ const PreciseCollisionGame = () => {
             nextInterval = burstModeRef.current.postComboDelay;
           }
           burstModeRef.current.remaining--;
-
           const minTime = (minDist / packageSpeedRef.current) * 1000;
           nextInterval = Math.max(minTime, nextInterval);
           nextPackageTimeRef.current = timestamp + nextInterval;
@@ -282,7 +280,7 @@ const PreciseCollisionGame = () => {
         }
       }
 
-      // move packages
+      // Move packages
       if (!inspecting || autoPilot) {
         setPackages((prev) => {
           return prev
@@ -301,7 +299,6 @@ const PreciseCollisionGame = () => {
                 x: newX + pkg.width / 2,
               };
               const inspLine = logoHitscanRef.current;
-
               if (pkg.status === 'unprocessed' && newX > inspLine) {
                 if (pkg.type === 'malicious') {
                   setScore((s) => ({ ...s, missed: s.missed + 1 }));
@@ -333,7 +330,7 @@ const PreciseCollisionGame = () => {
         });
       }
 
-      // autoPilot
+      // AutoPilot: automatically inspect packages at the inspection line
       if (autoPilot && !inspecting && gameActive && logoPosition === 'up') {
         const inspLine = logoHitscanRef.current;
         const unprocessed = packages.filter((p) => p.status === 'unprocessed');
@@ -353,7 +350,7 @@ const PreciseCollisionGame = () => {
         }
       }
 
-      // manual inspection
+      // Manual inspection when logo is down
       if (logoPosition === 'down' && !inspecting) {
         const inspLine = logoHitscanRef.current;
         const toInspect = packages.filter((p) => {
@@ -362,12 +359,10 @@ const PreciseCollisionGame = () => {
           const right = p.x + p.width;
           return left <= inspLine && right >= inspLine;
         });
-
         if (toInspect.length > 0) {
           const target = toInspect[0];
           setInspecting(true);
           setCurrentInspection({ ...target });
-
           setPackages((prev) =>
             prev.map((pkg) =>
               pkg.id === target.id
@@ -380,12 +375,10 @@ const PreciseCollisionGame = () => {
                 : pkg
             )
           );
-
           setTimeout(() => {
             setPackages((prevPack) => {
               const currentPackage = prevPack.find((p) => p.id === target.id);
               if (!currentPackage) return prevPack;
-
               const isMal = currentPackage.type === 'malicious';
               if (isMal) {
                 setScore((sc) => ({ ...sc, malicious: sc.malicious + 1 }));
@@ -512,7 +505,6 @@ const PreciseCollisionGame = () => {
         }
         return styles;
       }
-
       return { ...styles, top: '290px' };
     };
 
@@ -543,7 +535,9 @@ const PreciseCollisionGame = () => {
 
         <div className={`z-10 px-2 font-semibold ${textColor} relative`}>
           <div
-            className={pkg.status === 'missed' && pkg.wasUnprocessed ? 'fade-in' : ''}
+            className={
+              pkg.status === 'missed' && pkg.wasUnprocessed ? 'fade-in' : ''
+            }
           >
             {packageText}
           </div>
@@ -586,11 +580,7 @@ const PreciseCollisionGame = () => {
           <div className="text-xl font-bold text-gray-600">{score.missed}</div>
         </div>
         <div className="mt-2 text-center">
-          <div
-            className={`text-xs font-semibold ${
-              autoPilot ? 'text-purple-600' : 'text-gray-400'
-            }`}
-          >
+          <div className={`text-xs font-semibold ${autoPilot ? 'text-purple-600' : 'text-gray-400'}`}>
             {autoPilot ? 'QUBE MODE ACTIVE' : 'MANUAL MODE'}
           </div>
         </div>
@@ -628,20 +618,19 @@ const PreciseCollisionGame = () => {
   };
 
   const renderFloatingHits = () => {
-    // We'll keep arc hits at a fixed vertical position (e.g. 120px).
+    // Arc notifications will align to the inspection line
+    const inspectionPoint = logoHitscanRef.current || 0;
     const arcTopPos = '120px';
 
     return floatingHits.map((hit) => {
       if (hit.styleType === 'arc') {
-        // Arc notifications (SAFE/THREAT) appear centered horizontally,
-        // offset by --float-x in the arc-float animation.
         return (
           <div
             key={hit.id}
             className={`absolute arc-float text-lg font-bold ${hit.color}`}
             style={{
               top: arcTopPos,
-              left: '50%',
+              left: `${inspectionPoint}px`,
               transform: 'translateX(-50%)',
               '--float-x': `${hit.xOffset}px`,
             }}
@@ -650,7 +639,7 @@ const PreciseCollisionGame = () => {
           </div>
         );
       } else {
-        // Calm notifications use the fixed positions from calmPositions.
+        // Calm notifications use their fixed positions (from calmPositions)
         return (
           <div
             key={hit.id}
@@ -674,18 +663,12 @@ const PreciseCollisionGame = () => {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-5px); }
         }
-        .animate-bob {
-          animation: bob 2s ease-in-out infinite;
-        }
-
+        .animate-bob { animation: bob 2s ease-in-out infinite; }
         @keyframes bobIntense {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-15px); }
         }
-        .animate-bob-intense {
-          animation: bobIntense 1.2s ease-in-out infinite;
-        }
-
+        .animate-bob-intense { animation: bobIntense 1.2s ease-in-out infinite; }
         @keyframes verticalRattle {
           0%, 15%, 35%, 60%, 85%, 100% { transform: translateY(0); }
           7% { transform: translateY(-3px); }
@@ -702,7 +685,6 @@ const PreciseCollisionGame = () => {
           animation: verticalRattle 3.5s ease-in-out infinite;
           animation-delay: calc(var(--random-delay) * -3.5s);
         }
-
         @keyframes wiggleInner {
           0% { transform: rotate(0deg); }
           35% { transform: rotate(2.5deg); }
@@ -710,36 +692,22 @@ const PreciseCollisionGame = () => {
           85% { transform: rotate(0.8deg); }
           100% { transform: rotate(0deg); }
         }
-        .animate-wiggle-inner {
-          animation: wiggleInner 1.1s ease-in-out 1;
-        }
-
+        .animate-wiggle-inner { animation: wiggleInner 1.1s ease-in-out 1; }
         @keyframes fallAnimation {
           0% { top: 320px; transform: rotate(0deg); }
           100% { top: 600px; transform: rotate(45deg); }
         }
-        .falling-threat {
-          animation: fallAnimation 2s ease-in forwards;
-        }
-
+        .falling-threat { animation: fallAnimation 2s ease-in forwards; }
         @keyframes fadeTransition {
           0% { opacity: 0; }
           100% { opacity: 1; }
         }
-        .fade-in {
-          animation: fadeTransition 0.4s ease-in forwards;
-          animation-play-state: running;
-        }
-
+        .fade-in { animation: fadeTransition 0.4s ease-in forwards; animation-play-state: running; }
         @keyframes pulseSubtle {
           0%, 100% { background-color: #6b21a8; }
           50% { background-color: #9333ea; }
         }
-        .animate-pulse-subtle {
-          animation: pulseSubtle 1.2s ease-in-out infinite;
-        }
-
-        /* Arc-floating notifications: slow them down to 5s for clarity */
+        .animate-pulse-subtle { animation: pulseSubtle 1.2s ease-in-out infinite; }
         @keyframes floatArcRand {
           0% {
             transform: translate(0, 0) scale(1);
@@ -753,28 +721,13 @@ const PreciseCollisionGame = () => {
             opacity: 0;
           }
         }
-        .arc-float {
-          animation: floatArcRand 5s ease-out forwards;
-        }
-
-        /* Calm-floating notifications: fade in and stay put (some slight upward shift) */
+        .arc-float { animation: floatArcRand 5s ease-out forwards; }
         @keyframes calmFloat {
-          0% {
-            opacity: 0;
-            transform: translate(-50%, 20px);
-          }
-          50% {
-            opacity: 1;
-            transform: translate(-50%, 0px);
-          }
-          100% {
-            opacity: 1;
-            transform: translate(-50%, 0px);
-          }
+          0% { opacity: 0; transform: translate(-50%, 20px); }
+          50% { opacity: 1; transform: translate(-50%, 0px); }
+          100% { opacity: 1; transform: translate(-50%, 0px); }
         }
-        .calm-float {
-          animation: calmFloat 4s ease forwards;
-        }
+        .calm-float { animation: calmFloat 4s ease forwards; }
       `}</style>
 
       <div
