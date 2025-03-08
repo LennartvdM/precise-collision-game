@@ -119,52 +119,89 @@ const PreciseCollisionGame = () => {
   };
 
   // Helper to spawn floating text above the logo
-  const spawnHitIndicator = (isMalicious) => {
+const spawnHitIndicator = (isMalicious) => {
+  if (!isMalicious) {
+    // Same as before for SAFE
     const id = Date.now() + Math.random();
-
-    let text, color;
-
-    if (isMalicious) {
-      const countermeasures = [
-        'SQL Injection Blocked',
-        'XSS Attack Prevented',
-        'Bot Detected',
-        'Command Injection Stopped',
-        'Rate Limit Enforced',
-        'VPN/Proxy Blocked',
-        'Path Traversal Blocked',
-        'SSRF Attack Prevented',
-        'Token Verified',
-        'Security Alert Triggered'
-      ];
-      text = countermeasures[Math.floor(Math.random() * countermeasures.length)];
-      color = 'text-blue-500';
-    } else {
-      text = 'SAFE';
-      color = 'text-green-500';
-    }
-
-    // Generate a random angle between -15 and 15 degrees
-    const angleDegrees = Math.random() * 30 - 15;
-    const angleRad = (angleDegrees * Math.PI) / 180;
-    const finalY = 70;
-    const xOffset = finalY * Math.tan(angleRad);
-
     setFloatingHits((curr) => [
       ...curr,
       {
         id,
-        text,
-        color,
+        text: 'SAFE',
+        color: 'text-green-500',
+        styleType: 'arc', // We'll differentiate arc vs calm
         createdAt: Date.now(),
-        xOffset
-      }
+        xOffset: getRandomArcOffset() // your existing logic
+      },
     ]);
-
+    // remove after 1.4s
     setTimeout(() => {
       setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== id));
     }, 1600);
-  };
+    return;
+  }
+
+  // If malicious => spawn two hits
+
+  // 1) Red "THREAT" arcs out from the logo
+  const threatId = Date.now() + Math.random();
+  setFloatingHits((curr) => [
+    ...curr,
+    {
+      id: threatId,
+      text: 'THREAT',
+      color: 'text-red-500',
+      styleType: 'arc',
+      createdAt: Date.now(),
+      xOffset: getRandomArcOffset(), 
+    },
+  ]);
+  setTimeout(() => {
+    setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== threatId));
+  }, 1600);
+
+  // 2) Calm blue "countermeasure" text, not jumping from the logo
+  const cmId = Date.now() + Math.random();
+  const countermeasures = [
+    'SQL Injection Blocked',
+    'XSS Attack Prevented',
+    'Bot Detected',
+    'Command Injection Stopped',
+    'Rate Limit Enforced',
+    'VPN/Proxy Blocked',
+    'Path Traversal Blocked',
+    'SSRF Attack Prevented',
+    'Token Verified',
+    'Security Alert Triggered',
+  ];
+  const cmText = countermeasures[Math.floor(Math.random() * countermeasures.length)];
+
+  setFloatingHits((curr) => [
+    ...curr,
+    {
+      id: cmId,
+      text: cmText,
+      color: 'text-blue-500',
+      styleType: 'calm', // We'll define a calmer style for this
+      createdAt: Date.now(),
+      // We won't do an xOffset arc; we might just place it above the logo
+    },
+  ]);
+  // maybe let the countermeasure linger a bit longer (2.5s)
+  setTimeout(() => {
+    setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== cmId));
+  }, 2500);
+};
+
+// Example helper for arc offset
+function getRandomArcOffset() {
+  // Your existing logic for random angle & xOffset
+  const angleDegrees = Math.random() * 30 - 15;
+  const angleRad = (angleDegrees * Math.PI) / 180;
+  const finalY = 70;
+  return finalY * Math.tan(angleRad);
+}
+
 
   // Main game loop
   useEffect(() => {
