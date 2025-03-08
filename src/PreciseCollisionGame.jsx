@@ -35,7 +35,7 @@ const PreciseCollisionGame = () => {
   const [isHovered, setIsHovered] = useState(false);
   const [wiggleActive, setWiggleActive] = useState(false);
 
-  // We'll store floating hits here
+  // Floating notifications array
   const [floatingHits, setFloatingHits] = useState([]);
 
   // Toggle flags
@@ -52,45 +52,37 @@ const PreciseCollisionGame = () => {
   // Handle logo hover: trigger wiggle once on mouse enter
   const handleLogoHover = (hovering) => {
     setIsHovered(hovering);
-    if (hovering) {
-      setWiggleActive(true);
-    }
+    if (hovering) setWiggleActive(true);
   };
 
   // Setup speed transition
   useEffect(() => {
     let animationId;
     let startTime;
-
     const animate = (timestamp) => {
       if (!startTime) startTime = timestamp;
       const elapsed = timestamp - startTime;
-
       const targetSpeed = inspecting && !autoPilot ? 0 : 120;
       const duration = inspecting && !autoPilot ? 50 : 250;
-
       const progress = Math.min(elapsed / duration, 1);
       const eased =
         progress < 0.5
           ? 4 * progress * progress * progress
           : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-
       const startSpeed = inspecting && !autoPilot ? 120 : 0;
       const newSpeed = startSpeed + (targetSpeed - startSpeed) * eased;
-
       setConveyorSpeed(newSpeed);
       if (progress < 1) {
         animationId = requestAnimationFrame(animate);
       }
     };
-
     animationId = requestAnimationFrame(animate);
     return () => {
       if (animationId) cancelAnimationFrame(animationId);
     };
   }, [inspecting, autoPilot]);
 
-  // Update hitscan on resize
+  // Update logo hitscan on resize
   useEffect(() => {
     const updateLogoHitscan = () => {
       if (gameAreaRef.current) {
@@ -118,10 +110,10 @@ const PreciseCollisionGame = () => {
     }
   };
 
-  // Helper to spawn floating text above the logo
+  // Helper to spawn floating notifications
   const spawnHitIndicator = (isMalicious) => {
     if (!isMalicious) {
-      // Spawn SAFE indicator (green) lasting 3000ms.
+      // SAFE notification: arc style, lasting 5000ms
       const id = Date.now() + Math.random();
       setFloatingHits((curr) => [
         ...curr,
@@ -129,20 +121,20 @@ const PreciseCollisionGame = () => {
           id,
           text: 'SAFE',
           color: 'text-green-500',
-          styleType: 'arc', // Use arc animation style for jumping effect.
+          styleType: 'arc',
           createdAt: Date.now(),
           xOffset: getRandomArcOffset(),
         },
       ]);
       setTimeout(() => {
         setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== id));
-      }, 3000);
+      }, 5000);
       return;
     }
 
-    // For malicious packages, spawn two indicators:
+    // For malicious packages, spawn two notifications:
 
-    // 1) Red "THREAT" indicator (arc style) lasting 3000ms.
+    // 1) Red "THREAT" notification (arc style) lasting 5000ms
     const threatId = Date.now() + Math.random();
     setFloatingHits((curr) => [
       ...curr,
@@ -157,9 +149,9 @@ const PreciseCollisionGame = () => {
     ]);
     setTimeout(() => {
       setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== threatId));
-    }, 3000);
+    }, 5000);
 
-    // 2) Calm blue countermeasure text lasting 4000ms.
+    // 2) Blue countermeasure (calm style) lasting 6000ms
     const cmId = Date.now() + Math.random();
     const countermeasures = [
       'SQL Injection Blocked',
@@ -180,17 +172,16 @@ const PreciseCollisionGame = () => {
         id: cmId,
         text: cmText,
         color: 'text-blue-500',
-        styleType: 'calm', // Calm style for countermeasure text.
+        styleType: 'calm',
         createdAt: Date.now(),
-        // No xOffset needed; we'll center this text.
       },
     ]);
     setTimeout(() => {
       setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== cmId));
-    }, 4000);
+    }, 6000);
   };
 
-  // Helper for arc offset
+  // Helper for generating a random arc offset
   function getRandomArcOffset() {
     const angleDegrees = Math.random() * 30 - 15;
     const angleRad = (angleDegrees * Math.PI) / 180;
@@ -246,7 +237,6 @@ const PreciseCollisionGame = () => {
             nextInterval = burstModeRef.current.postComboDelay;
           }
           burstModeRef.current.remaining--;
-
           const minTime = (minDist / packageSpeedRef.current) * 1000;
           nextInterval = Math.max(minTime, nextInterval);
           nextPackageTimeRef.current = timestamp + nextInterval;
@@ -267,7 +257,6 @@ const PreciseCollisionGame = () => {
                   x: pkg.x + (horizontalSpeed * deltaTime) / 1000,
                 };
               }
-
               const speed = conveyorSpeed;
               const newX = pkg.x + (speed * deltaTime) / 1000;
               const newCenterPoint = {
@@ -275,12 +264,10 @@ const PreciseCollisionGame = () => {
                 x: newX + pkg.width / 2,
               };
               const inspLine = logoHitscanRef.current;
-
               if (pkg.status === 'unprocessed' && newX > inspLine) {
                 if (pkg.type === 'malicious') {
                   setScore((s) => ({ ...s, missed: s.missed + 1 }));
                 }
-
                 return {
                   ...pkg,
                   x: newX,
@@ -291,7 +278,6 @@ const PreciseCollisionGame = () => {
                   originalText: '?',
                 };
               }
-
               return {
                 ...pkg,
                 x: newX,
@@ -301,7 +287,7 @@ const PreciseCollisionGame = () => {
             .filter((pkg) => {
               const now = Date.now();
               const packageAge = now - (pkg.creationTime || now);
-              const lifetimeExceeded = packageAge > 13000; // 13 seconds lifetime
+              const lifetimeExceeded = packageAge > 13000;
               const isOffscreenX = pkg.x > window.innerWidth + 100;
               const isOffscreenY = pkg.status === 'threat' && pkg.y > 650;
               return !lifetimeExceeded && !isOffscreenX && !isOffscreenY;
@@ -338,12 +324,10 @@ const PreciseCollisionGame = () => {
           const right = p.x + p.width;
           return left <= inspLine && right >= inspLine;
         });
-
         if (toInspect.length > 0) {
           const target = toInspect[0];
           setInspecting(true);
           setCurrentInspection({ ...target });
-
           setPackages((prev) =>
             prev.map((pkg) =>
               pkg.id === target.id
@@ -356,12 +340,10 @@ const PreciseCollisionGame = () => {
                 : pkg
             )
           );
-
           setTimeout(() => {
             setPackages((prevPack) => {
               const currentPackage = prevPack.find((p) => p.id === target.id);
               if (!currentPackage) return prevPack;
-
               const isMal = currentPackage.type === 'malicious';
               if (isMal) {
                 setScore((sc) => ({ ...sc, malicious: sc.malicious + 1 }));
@@ -444,7 +426,9 @@ const PreciseCollisionGame = () => {
     }
 
     const animationClass =
-      pkg.status === 'unprocessed' || pkg.status === 'missed' ? 'animate-twitch' : '';
+      pkg.status === 'unprocessed' || pkg.status === 'missed'
+        ? 'animate-twitch'
+        : '';
     let extraClassName = '';
 
     if (pkg.status === 'threat' && pkg.inspectionTime) {
@@ -471,7 +455,8 @@ const PreciseCollisionGame = () => {
         return {
           ...styles,
           top: '290px',
-          transition: 'background-color 0.3s, top 0.8s cubic-bezier(0.34, 1.1, 0.64, 1.1)',
+          transition:
+            'background-color 0.3s, top 0.8s cubic-bezier(0.34, 1.1, 0.64, 1.1)',
         };
       } else if (pkg.status === 'threat') {
         const now = Date.now();
@@ -485,11 +470,7 @@ const PreciseCollisionGame = () => {
         }
         return styles;
       }
-
-      return {
-        ...styles,
-        top: '290px',
-      };
+      return { ...styles, top: '290px' };
     };
 
     return (
@@ -513,10 +494,16 @@ const PreciseCollisionGame = () => {
           ></div>
         )}
 
-        {debugMode && <div className="absolute h-full w-1 bg-gray-400 opacity-40 z-0" />}
+        {debugMode && (
+          <div className="absolute h-full w-1 bg-gray-400 opacity-40 z-0" />
+        )}
 
         <div className={`z-10 px-2 font-semibold ${textColor} relative`}>
-          <div className={pkg.status === 'missed' && pkg.wasUnprocessed ? 'fade-in' : ''}>
+          <div
+            className={
+              pkg.status === 'missed' && pkg.wasUnprocessed ? 'fade-in' : ''
+            }
+          >
             {packageText}
           </div>
         </div>
@@ -558,7 +545,11 @@ const PreciseCollisionGame = () => {
           <div className="text-xl font-bold text-gray-600">{score.missed}</div>
         </div>
         <div className="mt-2 text-center">
-          <div className={`text-xs font-semibold ${autoPilot ? 'text-purple-600' : 'text-gray-400'}`}>
+          <div
+            className={`text-xs font-semibold ${
+              autoPilot ? 'text-purple-600' : 'text-gray-400'
+            }`}
+          >
             {autoPilot ? 'QUBE MODE ACTIVE' : 'MANUAL MODE'}
           </div>
         </div>
@@ -579,7 +570,6 @@ const PreciseCollisionGame = () => {
             Inspection Line
           </div>
         </div>
-
         <div
           className="absolute h-24 bg-blue-200 opacity-20 pointer-events-none"
           style={{
@@ -597,10 +587,9 @@ const PreciseCollisionGame = () => {
   };
 
   const renderFloatingHits = () => {
-    // For arc hits, we'll use top position based on logoPosition.
-    const arcTopPos = logoPosition === 'up' ? 100 : 160;
-    // For calm hits, we'll position them higher.
-    const calmTopPos = 60;
+    // Fixed positions independent of logo state:
+    const arcTopPos = "120px";   // Arc notifications (SAFE and THREAT) appear here
+    const calmTopPos = "60px";   // Calm countermeasure notifications appear here
 
     return floatingHits.map((hit) => {
       if (hit.styleType === 'arc') {
@@ -609,8 +598,8 @@ const PreciseCollisionGame = () => {
             key={hit.id}
             className={`absolute arc-float text-lg font-bold ${hit.color}`}
             style={{
-              top: `${arcTopPos}px`,
-              left: `calc(50% - 30px)`,
+              top: arcTopPos,
+              left: '50%',
               transform: 'translateX(-50%)',
               '--float-x': `${hit.xOffset}px`,
             }}
@@ -619,13 +608,12 @@ const PreciseCollisionGame = () => {
           </div>
         );
       } else {
-        // Calm style for countermeasure hits
         return (
           <div
             key={hit.id}
             className={`absolute calm-float text-md font-semibold ${hit.color}`}
             style={{
-              top: `${calmTopPos}px`,
+              top: calmTopPos,
               left: '50%',
               transform: 'translateX(-50%)',
             }}
@@ -641,160 +629,66 @@ const PreciseCollisionGame = () => {
     <div className="flex justify-center items-center w-full bg-gray-50">
       <style jsx>{`
         @keyframes bob {
-          0%, 100% {
-            transform: translateY(0);
-          }
-          50% {
-            transform: translateY(-5px);
-          }
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-5px); }
         }
-        .animate-bob {
-          animation: bob 2s ease-in-out infinite;
-        }
-
+        .animate-bob { animation: bob 2s ease-in-out infinite; }
         @keyframes bobIntense {
-          0%, 100% {
-            transform: translateY(0);
-          }
-          50% {
-            transform: translateY(-15px);
-          }
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-15px); }
         }
-        .animate-bob-intense {
-          animation: bobIntense 1.2s ease-in-out infinite;
-        }
-
+        .animate-bob-intense { animation: bobIntense 1.2s ease-in-out infinite; }
         @keyframes verticalRattle {
-          0%, 15%, 35%, 60%, 85%, 100% {
-            transform: translateY(0);
-          }
-          7% {
-            transform: translateY(-3px);
-          }
-          10% {
-            transform: translateY(4px);
-          }
-          12% {
-            transform: translateY(-2px);
-          }
-          28% {
-            transform: translateY(3px);
-          }
-          32% {
-            transform: translateY(-2px);
-          }
-          53% {
-            transform: translateY(-3px);
-          }
-          57% {
-            transform: translateY(4px);
-          }
-          78% {
-            transform: translateY(3px);
-          }
-          82% {
-            transform: translateY(-2px);
-          }
+          0%, 15%, 35%, 60%, 85%, 100% { transform: translateY(0); }
+          7% { transform: translateY(-3px); }
+          10% { transform: translateY(4px); }
+          12% { transform: translateY(-2px); }
+          28% { transform: translateY(3px); }
+          32% { transform: translateY(-2px); }
+          53% { transform: translateY(-3px); }
+          57% { transform: translateY(4px); }
+          78% { transform: translateY(3px); }
+          82% { transform: translateY(-2px); }
         }
         .animate-twitch {
           animation: verticalRattle 3.5s ease-in-out infinite;
           animation-delay: calc(var(--random-delay) * -3.5s);
         }
-
         @keyframes wiggleInner {
-          0% {
-            transform: rotate(0deg);
-          }
-          35% {
-            transform: rotate(2.5deg);
-          }
-          65% {
-            transform: rotate(-1.8deg);
-          }
-          85% {
-            transform: rotate(0.8deg);
-          }
-          100% {
-            transform: rotate(0deg);
-          }
+          0% { transform: rotate(0deg); }
+          35% { transform: rotate(2.5deg); }
+          65% { transform: rotate(-1.8deg); }
+          85% { transform: rotate(0.8deg); }
+          100% { transform: rotate(0deg); }
         }
-        .animate-wiggle-inner {
-          animation: wiggleInner 1.1s ease-in-out 1;
-        }
-
+        .animate-wiggle-inner { animation: wiggleInner 1.1s ease-in-out 1; }
         @keyframes fallAnimation {
-          0% {
-            top: 320px;
-            transform: rotate(0deg);
-          }
-          100% {
-            top: 600px;
-            transform: rotate(45deg);
-          }
+          0% { top: 320px; transform: rotate(0deg); }
+          100% { top: 600px; transform: rotate(45deg); }
         }
-        .falling-threat {
-          animation: fallAnimation 2s ease-in forwards;
-        }
-
+        .falling-threat { animation: fallAnimation 2s ease-in forwards; }
         @keyframes fadeTransition {
-          0% {
-            opacity: 0;
-          }
-          100% {
-            opacity: 1;
-          }
+          0% { opacity: 0; }
+          100% { opacity: 1; }
         }
-        .fade-in {
-          animation: fadeTransition 0.4s ease-in forwards;
-          animation-play-state: running;
-        }
-
+        .fade-in { animation: fadeTransition 0.4s ease-in forwards; animation-play-state: running; }
         @keyframes pulseSubtle {
-          0%, 100% {
-            background-color: #6b21a8;
-          }
-          50% {
-            background-color: #9333ea;
-          }
+          0%, 100% { background-color: #6b21a8; }
+          50% { background-color: #9333ea; }
         }
-        .animate-pulse-subtle {
-          animation: pulseSubtle 1.2s ease-in-out infinite;
-        }
-
+        .animate-pulse-subtle { animation: pulseSubtle 1.2s ease-in-out infinite; }
         @keyframes floatArcRand {
-          0% {
-            transform: translate(0, 0) scale(1);
-            opacity: 1;
-          }
-          50% {
-            transform: translate(calc(var(--float-x) * 0.5), -35px) scale(1.1);
-          }
-          100% {
-            transform: translate(var(--float-x), -70px) scale(0.9);
-            opacity: 0;
-          }
+          0% { transform: translate(0, 0) scale(1); opacity: 1; }
+          50% { transform: translate(calc(var(--float-x) * 0.5), -35px) scale(1.1); }
+          100% { transform: translate(var(--float-x), -70px) scale(0.9); opacity: 0; }
         }
-        .arc-float {
-          animation: floatArcRand 1.4s ease-out forwards;
-        }
-
+        .arc-float { animation: floatArcRand 5s ease-out forwards; }
         @keyframes calmFloat {
-          0% {
-            opacity: 0;
-            transform: translate(-50%, 20px);
-          }
-          50% {
-            opacity: 1;
-            transform: translate(-50%, 0px);
-          }
-          100% {
-            opacity: 1;
-            transform: translate(-50%, 0px);
-          }
+          0% { opacity: 0; transform: translate(-50%, 20px); }
+          50% { opacity: 1; transform: translate(-50%, 0px); }
+          100% { opacity: 1; transform: translate(-50%, 0px); }
         }
-        .calm-float {
-          animation: calmFloat 1.2s ease forwards;
-        }
+        .calm-float { animation: calmFloat 4s ease forwards; }
       `}</style>
 
       <div
