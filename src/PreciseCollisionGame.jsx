@@ -119,89 +119,84 @@ const PreciseCollisionGame = () => {
   };
 
   // Helper to spawn floating text above the logo
-const spawnHitIndicator = (isMalicious) => {
-  if (!isMalicious) {
-    // Same as before for SAFE
-    const id = Date.now() + Math.random();
+  const spawnHitIndicator = (isMalicious) => {
+    if (!isMalicious) {
+      // Spawn SAFE indicator (green) lasting 3000ms.
+      const id = Date.now() + Math.random();
+      setFloatingHits((curr) => [
+        ...curr,
+        {
+          id,
+          text: 'SAFE',
+          color: 'text-green-500',
+          styleType: 'arc', // Use arc animation style for jumping effect.
+          createdAt: Date.now(),
+          xOffset: getRandomArcOffset(),
+        },
+      ]);
+      setTimeout(() => {
+        setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== id));
+      }, 3000);
+      return;
+    }
+
+    // For malicious packages, spawn two indicators:
+
+    // 1) Red "THREAT" indicator (arc style) lasting 3000ms.
+    const threatId = Date.now() + Math.random();
     setFloatingHits((curr) => [
       ...curr,
       {
-        id,
-        text: 'SAFE',
-        color: 'text-green-500',
-        styleType: 'arc', // We'll differentiate arc vs calm
+        id: threatId,
+        text: 'THREAT',
+        color: 'text-red-500',
+        styleType: 'arc',
         createdAt: Date.now(),
-        xOffset: getRandomArcOffset() // your existing logic
+        xOffset: getRandomArcOffset(),
       },
     ]);
-    // remove after 1.4s
     setTimeout(() => {
-      setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== id));
-    }, 1600);
-    return;
+      setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== threatId));
+    }, 3000);
+
+    // 2) Calm blue countermeasure text lasting 4000ms.
+    const cmId = Date.now() + Math.random();
+    const countermeasures = [
+      'SQL Injection Blocked',
+      'XSS Attack Prevented',
+      'Bot Detected',
+      'Command Injection Stopped',
+      'Rate Limit Enforced',
+      'VPN/Proxy Blocked',
+      'Path Traversal Blocked',
+      'SSRF Attack Prevented',
+      'Token Verified',
+      'Security Alert Triggered',
+    ];
+    const cmText = countermeasures[Math.floor(Math.random() * countermeasures.length)];
+    setFloatingHits((curr) => [
+      ...curr,
+      {
+        id: cmId,
+        text: cmText,
+        color: 'text-blue-500',
+        styleType: 'calm', // Calm style for countermeasure text.
+        createdAt: Date.now(),
+        // No xOffset needed; we'll center this text.
+      },
+    ]);
+    setTimeout(() => {
+      setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== cmId));
+    }, 4000);
+  };
+
+  // Helper for arc offset
+  function getRandomArcOffset() {
+    const angleDegrees = Math.random() * 30 - 15;
+    const angleRad = (angleDegrees * Math.PI) / 180;
+    const finalY = 70;
+    return finalY * Math.tan(angleRad);
   }
-
-  // If malicious => spawn two hits
-
-  // 1) Red "THREAT" arcs out from the logo
-  const threatId = Date.now() + Math.random();
-  setFloatingHits((curr) => [
-    ...curr,
-    {
-      id: threatId,
-      text: 'THREAT',
-      color: 'text-red-500',
-      styleType: 'arc',
-      createdAt: Date.now(),
-      xOffset: getRandomArcOffset(), 
-    },
-  ]);
-  setTimeout(() => {
-    setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== threatId));
-  }, 1600);
-
-  // 2) Calm blue "countermeasure" text, not jumping from the logo
-  const cmId = Date.now() + Math.random();
-  const countermeasures = [
-    'SQL Injection Blocked',
-    'XSS Attack Prevented',
-    'Bot Detected',
-    'Command Injection Stopped',
-    'Rate Limit Enforced',
-    'VPN/Proxy Blocked',
-    'Path Traversal Blocked',
-    'SSRF Attack Prevented',
-    'Token Verified',
-    'Security Alert Triggered',
-  ];
-  const cmText = countermeasures[Math.floor(Math.random() * countermeasures.length)];
-
-  setFloatingHits((curr) => [
-    ...curr,
-    {
-      id: cmId,
-      text: cmText,
-      color: 'text-blue-500',
-      styleType: 'calm', // We'll define a calmer style for this
-      createdAt: Date.now(),
-      // We won't do an xOffset arc; we might just place it above the logo
-    },
-  ]);
-  // maybe let the countermeasure linger a bit longer (2.5s)
-  setTimeout(() => {
-    setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== cmId));
-  }, 2500);
-};
-
-// Example helper for arc offset
-function getRandomArcOffset() {
-  // Your existing logic for random angle & xOffset
-  const angleDegrees = Math.random() * 30 - 15;
-  const angleRad = (angleDegrees * Math.PI) / 180;
-  const finalY = 70;
-  return finalY * Math.tan(angleRad);
-}
-
 
   // Main game loop
   useEffect(() => {
@@ -210,7 +205,7 @@ function getRandomArcOffset() {
       const deltaTime = timestamp - lastTimeRef.current;
       lastTimeRef.current = timestamp;
 
-      // spawn packages
+      // Spawn packages
       if (timestamp >= nextPackageTimeRef.current && gameActive) {
         const lastPackage = packages[packages.length - 1];
         const minDist = packageWidthRef.current + 5;
@@ -227,11 +222,11 @@ function getRandomArcOffset() {
             status: 'unprocessed',
             centerPoint: {
               x: -60 + packageWidthRef.current / 2,
-              width: 4
+              width: 4,
             },
             randomDelay: Math.random(),
             velocity: 0,
-            creationTime: Date.now()
+            creationTime: Date.now(),
           };
           setPackages((p) => [...p, newPackage]);
 
@@ -240,7 +235,7 @@ function getRandomArcOffset() {
             burstModeRef.current = {
               remaining: comboSize,
               intraComboDelay: 10 + Math.random() * 15,
-              postComboDelay: 1200 + Math.random() * 1800
+              postComboDelay: 1200 + Math.random() * 1800,
             };
           }
 
@@ -260,17 +255,16 @@ function getRandomArcOffset() {
         }
       }
 
-      // move packages
+      // Move packages
       if (!inspecting || autoPilot) {
         setPackages((prev) => {
           return prev
             .map((pkg) => {
               if (pkg.status === 'threat') {
-                // Only update horizontal position for threats (vertical is handled in renderPackage)
                 const horizontalSpeed = conveyorSpeed * 0.2;
                 return {
                   ...pkg,
-                  x: pkg.x + (horizontalSpeed * deltaTime) / 1000
+                  x: pkg.x + (horizontalSpeed * deltaTime) / 1000,
                 };
               }
 
@@ -278,7 +272,7 @@ function getRandomArcOffset() {
               const newX = pkg.x + (speed * deltaTime) / 1000;
               const newCenterPoint = {
                 ...pkg.centerPoint,
-                x: newX + pkg.width / 2
+                x: newX + pkg.width / 2,
               };
               const inspLine = logoHitscanRef.current;
 
@@ -294,21 +288,20 @@ function getRandomArcOffset() {
                   status: 'missed',
                   missedTime: Date.now(),
                   wasUnprocessed: true,
-                  originalText: '?'
+                  originalText: '?',
                 };
               }
 
               return {
                 ...pkg,
                 x: newX,
-                centerPoint: newCenterPoint
+                centerPoint: newCenterPoint,
               };
             })
             .filter((pkg) => {
-              // Remove packages that are off-screen or have exceeded their lifetime
               const now = Date.now();
               const packageAge = now - (pkg.creationTime || now);
-              const lifetimeExceeded = packageAge > 13000; // 13 seconds
+              const lifetimeExceeded = packageAge > 13000; // 13 seconds lifetime
               const isOffscreenX = pkg.x > window.innerWidth + 100;
               const isOffscreenY = pkg.status === 'threat' && pkg.y > 650;
               return !lifetimeExceeded && !isOffscreenX && !isOffscreenY;
@@ -358,7 +351,7 @@ function getRandomArcOffset() {
                     ...pkg,
                     status: 'inspecting',
                     duckStartTime: Date.now(),
-                    hideQuestionMark: true
+                    hideQuestionMark: true,
                   }
                 : pkg
             )
@@ -373,26 +366,24 @@ function getRandomArcOffset() {
               if (isMal) {
                 setScore((sc) => ({ ...sc, malicious: sc.malicious + 1 }));
                 spawnHitIndicator(true);
-
                 return prevPack.map((p) =>
                   p.id === target.id
                     ? {
                         ...p,
                         status: 'threat',
-                        inspectionTime: Date.now()
+                        inspectionTime: Date.now(),
                       }
                     : p
                 );
               } else {
                 setScore((sc) => ({ ...sc, safe: sc.safe + 1 }));
                 spawnHitIndicator(false);
-
                 return prevPack.map((p) =>
                   p.id === target.id
                     ? {
                         ...p,
                         status: 'safe',
-                        safeRecoveryStart: Date.now()
+                        safeRecoveryStart: Date.now(),
                       }
                     : p
                 );
@@ -467,20 +458,20 @@ function getRandomArcOffset() {
     const getPackageStyles = () => {
       const styles = {
         left: `${pkg.x}px`,
-        width: `${pkg.width}px`
+        width: `${pkg.width}px`,
       };
 
       if (pkg.status === 'inspecting') {
         return {
           ...styles,
           top: '320px',
-          transition: 'top 0.3s cubic-bezier(0.17, 0.67, 0.24, 0.99)'
+          transition: 'top 0.3s cubic-bezier(0.17, 0.67, 0.24, 0.99)',
         };
       } else if (pkg.status === 'safe') {
         return {
           ...styles,
           top: '290px',
-          transition: 'background-color 0.3s, top 0.8s cubic-bezier(0.34, 1.1, 0.64, 1.1)'
+          transition: 'background-color 0.3s, top 0.8s cubic-bezier(0.34, 1.1, 0.64, 1.1)',
         };
       } else if (pkg.status === 'threat') {
         const now = Date.now();
@@ -489,7 +480,7 @@ function getRandomArcOffset() {
           return {
             ...styles,
             top: '320px',
-            transition: 'top 0.15s linear'
+            transition: 'top 0.15s linear',
           };
         }
         return styles;
@@ -497,7 +488,7 @@ function getRandomArcOffset() {
 
       return {
         ...styles,
-        top: '290px'
+        top: '290px',
       };
     };
 
@@ -507,7 +498,7 @@ function getRandomArcOffset() {
         className={`absolute h-10 rounded-md shadow-md flex items-center justify-center text-xs ${packageStyle} ${animationClass} ${extraClassName}`}
         style={{
           ...getPackageStyles(),
-          '--random-delay': pkg.randomDelay || 0
+          '--random-delay': pkg.randomDelay || 0,
         }}
       >
         {debugMode && (
@@ -517,7 +508,7 @@ function getRandomArcOffset() {
               left: '50%',
               marginLeft: `-${pkg.centerPoint?.width / 2 || 2}px`,
               width: `${pkg.centerPoint?.width || 4}px`,
-              opacity: 0.7
+              opacity: 0.7,
             }}
           ></div>
         )}
@@ -543,7 +534,7 @@ function getRandomArcOffset() {
             width: '20px',
             height: '20px',
             marginLeft: '-10px',
-            opacity: 0.6
+            opacity: 0.6,
           }}
         ></div>
       );
@@ -594,7 +585,7 @@ function getRandomArcOffset() {
           style={{
             top: '170px',
             left: inspectionPoint - logoWidthRef.current / 2,
-            width: logoWidthRef.current
+            width: logoWidthRef.current,
           }}
         >
           <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs bg-white px-2 py-1 rounded shadow-sm whitespace-nowrap">
@@ -606,24 +597,43 @@ function getRandomArcOffset() {
   };
 
   const renderFloatingHits = () => {
-    const topPos = logoPosition === 'up' ? 100 : 160;
-    const leftOffset = -30;
+    // For arc hits, we'll use top position based on logoPosition.
+    const arcTopPos = logoPosition === 'up' ? 100 : 160;
+    // For calm hits, we'll position them higher.
+    const calmTopPos = 60;
 
     return floatingHits.map((hit) => {
-      return (
-        <div
-          key={hit.id}
-          className={`absolute arc-float text-lg font-bold ${hit.color}`}
-          style={{
-            top: `${topPos}px`,
-            left: `calc(50% + ${leftOffset}px)`,
-            transform: 'translateX(-50%)',
-            '--float-x': `${hit.xOffset}px`
-          }}
-        >
-          {hit.text}
-        </div>
-      );
+      if (hit.styleType === 'arc') {
+        return (
+          <div
+            key={hit.id}
+            className={`absolute arc-float text-lg font-bold ${hit.color}`}
+            style={{
+              top: `${arcTopPos}px`,
+              left: `calc(50% - 30px)`,
+              transform: 'translateX(-50%)',
+              '--float-x': `${hit.xOffset}px`,
+            }}
+          >
+            {hit.text}
+          </div>
+        );
+      } else {
+        // Calm style for countermeasure hits
+        return (
+          <div
+            key={hit.id}
+            className={`absolute calm-float text-md font-semibold ${hit.color}`}
+            style={{
+              top: `${calmTopPos}px`,
+              left: '50%',
+              transform: 'translateX(-50%)',
+            }}
+          >
+            {hit.text}
+          </div>
+        );
+      }
     });
   };
 
@@ -767,6 +777,24 @@ function getRandomArcOffset() {
         .arc-float {
           animation: floatArcRand 1.4s ease-out forwards;
         }
+
+        @keyframes calmFloat {
+          0% {
+            opacity: 0;
+            transform: translate(-50%, 20px);
+          }
+          50% {
+            opacity: 1;
+            transform: translate(-50%, 0px);
+          }
+          100% {
+            opacity: 1;
+            transform: translate(-50%, 0px);
+          }
+        }
+        .calm-float {
+          animation: calmFloat 1.2s ease forwards;
+        }
       `}</style>
 
       <div
@@ -778,7 +806,9 @@ function getRandomArcOffset() {
           <button
             onClick={toggleDebugMode}
             className={`px-4 py-2 rounded-lg shadow-md font-medium ${
-              debugMode ? 'bg-purple-600 text-white' : 'bg-white text-purple-700 border border-purple-200'
+              debugMode
+                ? 'bg-purple-600 text-white'
+                : 'bg-white text-purple-700 border border-purple-200'
             }`}
           >
             {debugMode ? 'Debug Mode: ON' : 'Debug Mode: OFF'}
@@ -786,7 +816,9 @@ function getRandomArcOffset() {
           <button
             onClick={toggleAutoPilot}
             className={`px-4 py-2 rounded-lg shadow-md font-medium text-white ${
-              autoPilot ? 'bg-purple-800 animate-pulse-subtle' : 'bg-purple-600'
+              autoPilot
+                ? 'bg-purple-800 animate-pulse-subtle'
+                : 'bg-purple-600'
             }`}
           >
             QUBE MODE
@@ -804,13 +836,16 @@ function getRandomArcOffset() {
         <div ref={gameAreaRef} className="relative w-full h-full">
           <div
             className={`absolute h-5 bg-gradient-to-r from-purple-100 to-purple-200 rounded-full ${
-              inspecting && !autoPilot ? 'opacity-50 border-2 border-red-300' : 'opacity-100'
+              inspecting && !autoPilot
+                ? 'opacity-50 border-2 border-red-300'
+                : 'opacity-100'
             }`}
             style={{
               top: '300px',
-              transition: 'opacity 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), border 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              transition:
+                'opacity 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), border 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
               left: '50px',
-              right: '50px'
+              right: '50px',
             }}
           ></div>
 
