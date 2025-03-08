@@ -52,37 +52,45 @@ const PreciseCollisionGame = () => {
   // Handle logo hover: trigger wiggle once on mouse enter
   const handleLogoHover = (hovering) => {
     setIsHovered(hovering);
-    if (hovering) setWiggleActive(true);
+    if (hovering) {
+      setWiggleActive(true);
+    }
   };
 
   // Setup speed transition
   useEffect(() => {
     let animationId;
     let startTime;
+
     const animate = (timestamp) => {
       if (!startTime) startTime = timestamp;
       const elapsed = timestamp - startTime;
+
       const targetSpeed = inspecting && !autoPilot ? 0 : 120;
       const duration = inspecting && !autoPilot ? 50 : 250;
+
       const progress = Math.min(elapsed / duration, 1);
       const eased =
         progress < 0.5
           ? 4 * progress * progress * progress
           : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
       const startSpeed = inspecting && !autoPilot ? 120 : 0;
       const newSpeed = startSpeed + (targetSpeed - startSpeed) * eased;
+
       setConveyorSpeed(newSpeed);
       if (progress < 1) {
         animationId = requestAnimationFrame(animate);
       }
     };
+
     animationId = requestAnimationFrame(animate);
     return () => {
       if (animationId) cancelAnimationFrame(animationId);
     };
   }, [inspecting, autoPilot]);
 
-  // Update logo hitscan on resize
+  // Update hitscan on resize
   useEffect(() => {
     const updateLogoHitscan = () => {
       if (gameAreaRef.current) {
@@ -113,7 +121,7 @@ const PreciseCollisionGame = () => {
   // Helper to spawn floating notifications
   const spawnHitIndicator = (isMalicious) => {
     if (!isMalicious) {
-      // SAFE notification: arc style, lasting 5000ms
+      // Spawn SAFE indicator (arc style) lasting 5000ms.
       const id = Date.now() + Math.random();
       setFloatingHits((curr) => [
         ...curr,
@@ -121,7 +129,7 @@ const PreciseCollisionGame = () => {
           id,
           text: 'SAFE',
           color: 'text-green-500',
-          styleType: 'arc',
+          styleType: 'arc', // Use arc style for jumping effect.
           createdAt: Date.now(),
           xOffset: getRandomArcOffset(),
         },
@@ -134,7 +142,7 @@ const PreciseCollisionGame = () => {
 
     // For malicious packages, spawn two notifications:
 
-    // 1) Red "THREAT" notification (arc style) lasting 5000ms
+    // 1) Red "THREAT" indicator (arc style) lasting 5000ms.
     const threatId = Date.now() + Math.random();
     setFloatingHits((curr) => [
       ...curr,
@@ -151,7 +159,8 @@ const PreciseCollisionGame = () => {
       setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== threatId));
     }, 5000);
 
-    // 2) Blue countermeasure (calm style) lasting 6000ms
+    // 2) Blue countermeasure (calm style) lasting 6000ms,
+    // with a random horizontal offset to either side.
     const cmId = Date.now() + Math.random();
     const countermeasures = [
       'SQL Injection Blocked',
@@ -166,14 +175,18 @@ const PreciseCollisionGame = () => {
       'Security Alert Triggered',
     ];
     const cmText = countermeasures[Math.floor(Math.random() * countermeasures.length)];
+    // Generate a random horizontal offset between 80 and 120 pixels, to either side.
+    const randomXOffset =
+      (Math.random() < 0.5 ? -1 : 1) * (80 + Math.floor(Math.random() * 40));
     setFloatingHits((curr) => [
       ...curr,
       {
         id: cmId,
         text: cmText,
         color: 'text-blue-500',
-        styleType: 'calm',
+        styleType: 'calm', // Calm style for countermeasure text.
         createdAt: Date.now(),
+        xOffset: randomXOffset,
       },
     ]);
     setTimeout(() => {
@@ -181,7 +194,7 @@ const PreciseCollisionGame = () => {
     }, 6000);
   };
 
-  // Helper for generating a random arc offset
+  // Helper for generating a random arc offset (for arc notifications)
   function getRandomArcOffset() {
     const angleDegrees = Math.random() * 30 - 15;
     const angleRad = (angleDegrees * Math.PI) / 180;
@@ -470,6 +483,7 @@ const PreciseCollisionGame = () => {
         }
         return styles;
       }
+
       return { ...styles, top: '290px' };
     };
 
@@ -499,11 +513,7 @@ const PreciseCollisionGame = () => {
         )}
 
         <div className={`z-10 px-2 font-semibold ${textColor} relative`}>
-          <div
-            className={
-              pkg.status === 'missed' && pkg.wasUnprocessed ? 'fade-in' : ''
-            }
-          >
+          <div className={pkg.status === 'missed' && pkg.wasUnprocessed ? 'fade-in' : ''}>
             {packageText}
           </div>
         </div>
@@ -545,11 +555,7 @@ const PreciseCollisionGame = () => {
           <div className="text-xl font-bold text-gray-600">{score.missed}</div>
         </div>
         <div className="mt-2 text-center">
-          <div
-            className={`text-xs font-semibold ${
-              autoPilot ? 'text-purple-600' : 'text-gray-400'
-            }`}
-          >
+          <div className={`text-xs font-semibold ${autoPilot ? 'text-purple-600' : 'text-gray-400'}`}>
             {autoPilot ? 'QUBE MODE ACTIVE' : 'MANUAL MODE'}
           </div>
         </div>
@@ -587,10 +593,9 @@ const PreciseCollisionGame = () => {
   };
 
   const renderFloatingHits = () => {
-    // Fixed positions independent of logo state:
-    const arcTopPos = "120px";   // Arc notifications (SAFE and THREAT) appear here
-    const calmTopPos = "60px";   // Calm countermeasure notifications appear here
-
+    // For arc notifications, they appear at a fixed vertical position.
+    const arcTopPos = "120px";
+    // Calm notifications now use their own random horizontal offset.
     return floatingHits.map((hit) => {
       if (hit.styleType === 'arc') {
         return (
@@ -608,14 +613,14 @@ const PreciseCollisionGame = () => {
           </div>
         );
       } else {
+        // Calm style: use the provided xOffset to shift left or right.
         return (
           <div
             key={hit.id}
             className={`absolute calm-float text-md font-semibold ${hit.color}`}
             style={{
-              top: calmTopPos,
-              left: '50%',
-              transform: 'translateX(-50%)',
+              top: '60px',
+              left: `calc(50% + ${hit.xOffset}px)`,
             }}
           >
             {hit.text}
@@ -730,9 +735,7 @@ const PreciseCollisionGame = () => {
         <div ref={gameAreaRef} className="relative w-full h-full">
           <div
             className={`absolute h-5 bg-gradient-to-r from-purple-100 to-purple-200 rounded-full ${
-              inspecting && !autoPilot
-                ? 'opacity-50 border-2 border-red-300'
-                : 'opacity-100'
+              inspecting && !autoPilot ? 'opacity-50 border-2 border-red-300' : 'opacity-100'
             }`}
             style={{
               top: '300px',
