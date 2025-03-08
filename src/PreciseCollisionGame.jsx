@@ -173,16 +173,24 @@ const PreciseCollisionGame = () => {
     // Calm countermeasure: pick the next position from calmPositions
     const cmId = Date.now() + Math.random();
     const countermeasures = [
-      'SQL Injection Blocked',
-      'XSS Attack Prevented',
-      'Bot Detected',
-      'Command Injection Stopped',
-      'Rate Limit Enforced',
-      'VPN/Proxy Blocked',
-      'Path Traversal Blocked',
-      'SSRF Attack Prevented',
+      'SQL Injection',
+      'XSS Attack',
+      'Bot',
+      'Command Injection',
+      'Traffic Spike',
+      'Fake Account',
+      'Credential Stuffing',
+      'Web Scraping',
+      'Click Fraud',
+      'Click Farming',
+      'DDoS',
+      'Brute-Force Login',
+      'Proxy',
+      'VPN',
+      'Path Traversal',
+      'SSRF Attack',
       'Token Verified',
-      'Security Alert Triggered',
+      'Security Alert',
     ];
     const cmText = countermeasures[Math.floor(Math.random() * countermeasures.length)];
 
