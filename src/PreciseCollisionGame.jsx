@@ -451,7 +451,7 @@ const renderScoreboard = () => {
       </div>
       <div className="mt-1">
         <span className="text-xs font-extrabold text-purple-500 uppercase">
-          {autoPilot ? 'QUBE MODE ACTIVE' : 'MANUAL MODE'}
+          {autoPilot ? 'QUBE MODE' : 'MANUAL MODE'}
         </span>
       </div>
     </div>
