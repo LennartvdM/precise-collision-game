@@ -23,7 +23,7 @@ const PreciseCollisionGame = () => {
 
   // Collision detection
   const logoWidthRef = useRef(80);
-  const logoHitscanRef = useRef(null); // This is our inspection line
+  const logoHitscanRef = useRef(null);
   const packageWidthRef = useRef(48);
 
   // Hover & wiggle states
@@ -33,7 +33,7 @@ const PreciseCollisionGame = () => {
   // Floating notifications
   const [floatingHits, setFloatingHits] = useState([]);
 
-  // For "calm" (countermeasure) notifications
+  // Calm notifications positions
   const calmPositions = [
     { top: 40, left: 'calc(50% - 120px)' },
     { top: 60, left: 'calc(50% + 100px)' },
@@ -44,12 +44,14 @@ const PreciseCollisionGame = () => {
   ];
   const calmIndexRef = useRef(0);
 
-  // Toggle flags
+  // Toggle debug mode
   const toggleDebugMode = () => setDebugMode((d) => !d);
+
+  // Toggle QUBE MODE
   const toggleAutoPilot = () => {
     setAutoPilot((a) => {
+      // If we are enabling autoPilot, reset missed to 0
       if (!a) {
-        // Reset missed if we switch to autopilot
         setScore((prev) => ({ ...prev, missed: 0 }));
       }
       return !a;
@@ -103,7 +105,6 @@ const PreciseCollisionGame = () => {
     const updateLogoHitscan = () => {
       if (gameAreaRef.current) {
         const rect = gameAreaRef.current.getBoundingClientRect();
-        // Use the center of the game area as the inspection line
         logoHitscanRef.current = rect.width / 2;
       }
     };
@@ -114,28 +115,30 @@ const PreciseCollisionGame = () => {
 
   // Handle logo click
   const handleLogoClick = () => {
-    if (gameActive && !autoPilot) {
+    // If QUBE MODE is active, disable it immediately and revert to manual
+    if (autoPilot) {
+      setAutoPilot(false);
+    } else if (gameActive) {
+      // Normal manual mode click logic
       setLogoPosition('down');
       setTimeout(() => setLogoPosition('up'), 200);
     }
   };
 
-  // Handle wiggle animation end
+  // Wiggle animation end
   const handleWiggleEnd = (e) => {
     if (e.animationName === 'wiggleInner') {
       setWiggleActive(false);
     }
   };
 
-  /**
-   * Generate a random arc offset for the fountain effect.
-   * Adjust angle range or finalY to make arcs more dramatic.
+  /** 
+   * For a fountain-like arc offset 
+   * Adjust angleDegrees or finalY for more dramatic arcs
    */
   function getRandomArcOffset() {
-    // Wider range for more dramatic arcs (e.g., -60..60)
-    const angleDegrees = Math.random() * 120 - 60;
+    const angleDegrees = Math.random() * 120 - 60; // -60..60
     const angleRad = (angleDegrees * Math.PI) / 180;
-    // Increase finalY to float them higher
     const finalY = 140;
     return finalY * Math.tan(angleRad);
   }
@@ -143,7 +146,7 @@ const PreciseCollisionGame = () => {
   // Spawn floating notifications (safe or malicious)
   const spawnHitIndicator = (isMalicious) => {
     if (!isMalicious) {
-      // SAFE indicator
+      // SAFE
       const id = Date.now() + Math.random();
       setFloatingHits((curr) => [
         ...curr,
@@ -156,14 +159,13 @@ const PreciseCollisionGame = () => {
           xOffset: getRandomArcOffset(),
         },
       ]);
-      // Extend to 10s so it doesn't vanish too soon
       setTimeout(() => {
         setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== id));
-      }, 10000);
+      }, 10000); // 10s
       return;
     }
 
-    // Malicious notifications: "THREAT" + calm
+    // Malicious: "THREAT" + calm
     const threatId = Date.now() + Math.random();
     setFloatingHits((curr) => [
       ...curr,
@@ -180,7 +182,7 @@ const PreciseCollisionGame = () => {
       setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== threatId));
     }, 10000);
 
-    // Calm countermeasure
+    // Calm
     const cmId = Date.now() + Math.random();
     const countermeasures = [
       'SQL Injection',
@@ -220,7 +222,6 @@ const PreciseCollisionGame = () => {
         left: chosenPos.left,
       },
     ]);
-    // Calm notifications can remain shorter or extended
     setTimeout(() => {
       setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== cmId));
     }, 6000);
@@ -302,8 +303,10 @@ const PreciseCollisionGame = () => {
                 ...pkg.centerPoint,
                 x: newX + pkg.width / 2,
               };
+
               const inspLine = logoHitscanRef.current;
-              if (pkg.status === 'unprocessed' && newX > inspLine) {
+              // Only increment missed if autoPilot is OFF
+              if (!autoPilot && pkg.status === 'unprocessed' && newX > inspLine) {
                 if (pkg.type === 'malicious') {
                   setScore((s) => ({ ...s, missed: s.missed + 1 }));
                 }
@@ -356,7 +359,7 @@ const PreciseCollisionGame = () => {
       }
 
       // Manual inspection
-      if (logoPosition === 'down' && !inspecting) {
+      if (logoPosition === 'down' && !inspecting && !autoPilot) {
         const inspLine = logoHitscanRef.current;
         const toInspect = packages.filter((p) => {
           if (p.status !== 'unprocessed') return false;
@@ -424,7 +427,14 @@ const PreciseCollisionGame = () => {
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [gameActive, inspecting, logoPosition, packages, autoPilot, conveyorSpeed]);
+  }, [
+    gameActive,
+    inspecting,
+    logoPosition,
+    packages,
+    autoPilot,
+    conveyorSpeed,
+  ]);
 
   // Scoreboard with a fixed width so it doesn't resize
   const renderScoreboard = () => {
@@ -625,14 +635,13 @@ const PreciseCollisionGame = () => {
     );
   };
 
-  // Floating notifications: now fully handled in keyframes for centering
+  // Floating notifications: arcs outward with random angles
   const renderFloatingHits = () => {
     const inspectionPoint = logoHitscanRef.current || 0;
     const arcTopPos = '120px';
 
     return floatingHits.map((hit) => {
       if (hit.styleType === 'arc') {
-        // Use the new arc-float animation with bigger angles
         return (
           <div
             key={hit.id}
@@ -640,7 +649,6 @@ const PreciseCollisionGame = () => {
             style={{
               top: arcTopPos,
               left: `${inspectionPoint}px`,
-              // No inline transform for horizontal center—done in keyframes
               '--float-x': `${hit.xOffset || 0}px`,
             }}
           >
@@ -729,10 +737,9 @@ const PreciseCollisionGame = () => {
           animation: pulseSubtle 1.2s ease-in-out infinite;
         }
 
-        /* Fountain-like arcs with bigger angle & distance */
+        /* Fountain arcs, bigger angle & distance */
         @keyframes floatArcRand {
           0% {
-            /* Start horizontally centered on the line: */
             transform: translate(-50%, 0) scale(1);
             opacity: 1;
           }
@@ -750,7 +757,6 @@ const PreciseCollisionGame = () => {
             opacity: 0;
           }
         }
-        /* Extended to 10s for a more noticeable effect */
         .arc-float {
           animation: floatArcRand 10s ease-out forwards;
         }
