@@ -171,7 +171,7 @@ const PreciseCollisionGame = () => {
       setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== threatId));
     }, 5000);
 
-    // 2) Calm blue countermeasure notification lasting 6000ms,
+    // 2) Calm pale purple countermeasure notification lasting 6000ms,
     // using fixed positions from calmPositions.
     const cmId = Date.now() + Math.random();
     const countermeasures = [
@@ -204,7 +204,7 @@ const PreciseCollisionGame = () => {
       {
         id: cmId,
         text: cmText,
-        color: 'text-blue-500',
+        color: 'text-purple-300', // Changed to pale purple
         styleType: 'calm',
         createdAt: Date.now(),
         top: chosenPos.top,
@@ -722,12 +722,14 @@ const PreciseCollisionGame = () => {
           }
         }
         .arc-float { animation: floatArcRand 5s ease-out forwards; }
+        /* Updated calm-float for a slow fade out with pale purple color */
         @keyframes calmFloat {
           0% { opacity: 0; transform: translate(-50%, 20px); }
           50% { opacity: 1; transform: translate(-50%, 0px); }
-          100% { opacity: 1; transform: translate(-50%, 0px); }
+          80% { opacity: 1; transform: translate(-50%, 0px); }
+          100% { opacity: 0; transform: translate(-50%, 0px); }
         }
-        .calm-float { animation: calmFloat 4s ease forwards; }
+        .calm-float { animation: calmFloat 6s ease forwards; }
       `}</style>
 
       <div
