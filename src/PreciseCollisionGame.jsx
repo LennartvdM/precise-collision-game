@@ -50,7 +50,7 @@ const PreciseCollisionGame = () => {
   // Toggle QUBE MODE
   const toggleAutoPilot = () => {
     setAutoPilot((a) => {
-      // If we are enabling autoPilot, reset missed to 0
+      // Reset missed to 0 whenever we enable QUBE MODE
       if (!a) {
         setScore((prev) => ({ ...prev, missed: 0 }));
       }
@@ -119,7 +119,7 @@ const PreciseCollisionGame = () => {
     if (autoPilot) {
       setAutoPilot(false);
     } else if (gameActive) {
-      // Normal manual mode click logic
+      // Normal manual mode click
       setLogoPosition('down');
       setTimeout(() => setLogoPosition('up'), 200);
     }
@@ -305,6 +305,7 @@ const PreciseCollisionGame = () => {
               };
 
               const inspLine = logoHitscanRef.current;
+
               // Only increment missed if autoPilot is OFF
               if (!autoPilot && pkg.status === 'unprocessed' && newX > inspLine) {
                 if (pkg.type === 'malicious') {
@@ -338,27 +339,30 @@ const PreciseCollisionGame = () => {
         });
       }
 
-      // AutoPilot: automatically inspect packages at the inspection line
+      // AutoPilot: automatically inspect packages if they're close to the line
       if (autoPilot && !inspecting && gameActive && logoPosition === 'up') {
         const inspLine = logoHitscanRef.current;
         const unprocessed = packages.filter((p) => p.status === 'unprocessed');
         const toScan = unprocessed.filter((p) => {
           if (!p || !p.centerPoint) return false;
+          // Increase threshold from 1 to e.g. 20 so we catch them in time
           const dist = Math.abs(p.centerPoint.x - inspLine);
-          return dist <= 1;
+          return dist <= 20;
         });
         if (toScan.length > 0) {
+          // Sort by distance so we inspect the closest package first
           toScan.sort((a, b) => {
             const aC = a.centerPoint.x;
             const bC = b.centerPoint.x;
             return Math.abs(inspLine - aC) - Math.abs(inspLine - bC);
           });
+          // Perform the “duck” to inspect
           setLogoPosition('down');
           setTimeout(() => setLogoPosition('up'), 150);
         }
       }
 
-      // Manual inspection
+      // Manual inspection (only if autopilot is off)
       if (logoPosition === 'down' && !inspecting && !autoPilot) {
         const inspLine = logoHitscanRef.current;
         const toInspect = packages.filter((p) => {
