@@ -425,15 +425,15 @@ const PreciseCollisionGame = () => {
       >
         <div className="flex justify-between items-center">
           <span className="text-xs uppercase font-extrabold text-purple-300">Safe</span>
-          <span className="text-base font-extrabold text-purple-300">{score.safe}</span>
+          <span className="text-base font-medium text-green-500">{score.safe}</span>
         </div>
         <div className="flex justify-between items-center">
           <span className="text-xs uppercase font-extrabold text-purple-300">Threats</span>
-          <span className="text-base font-extrabold text-purple-300">{score.malicious}</span>
+          <span className="text-base font-medium text-red-500">{score.malicious}</span>
         </div>
         <div className="flex justify-between items-center">
           <span className="text-xs uppercase font-extrabold text-purple-300">Missed</span>
-          <span className="text-base font-extrabold text-purple-300">{score.missed}</span>
+          <span className="text-base font-medium text-yellow-500">{score.missed}</span>
         </div>
         <div className="mt-1">
           <span className="text-xs font-extrabold text-purple-300 uppercase">
