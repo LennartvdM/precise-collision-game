@@ -38,7 +38,7 @@ const PreciseCollisionGame = () => {
   // Floating notifications
   const [floatingHits, setFloatingHits] = useState([]);
 
-  // Define 6 fixed positions for calm (countermeasure) notifications in two rough arcs
+  // Define fixed positions for "calm" (countermeasure) notifications
   const calmPositions = [
     { top: 40, left: 'calc(50% - 120px)' },
     { top: 60, left: 'calc(50% + 100px)' },
@@ -53,6 +53,7 @@ const PreciseCollisionGame = () => {
   const toggleDebugMode = () => setDebugMode((d) => !d);
   const toggleAutoPilot = () => {
     setAutoPilot((a) => {
+      // Reset missed threats when enabling autoPilot
       if (!a) {
         setScore((prev) => ({ ...prev, missed: 0 }));
       }
@@ -68,7 +69,7 @@ const PreciseCollisionGame = () => {
     }
   };
 
-  // Setup speed transition
+  // Speed transition effect
   useEffect(() => {
     let animationId;
     let startTime;
@@ -81,6 +82,7 @@ const PreciseCollisionGame = () => {
       const duration = inspecting && !autoPilot ? 50 : 250;
 
       const progress = Math.min(elapsed / duration, 1);
+      // Ease in/out
       const eased =
         progress < 0.5
           ? 4 * progress * progress * progress
@@ -130,10 +132,10 @@ const PreciseCollisionGame = () => {
     }
   };
 
-  // Helper to spawn floating notifications
+  // Spawn floating notifications (safe or malicious)
   const spawnHitIndicator = (isMalicious) => {
     if (!isMalicious) {
-      // SAFE notification (arc style) lasting 5000ms
+      // SAFE indicator
       const id = Date.now() + Math.random();
       setFloatingHits((curr) => [
         ...curr,
@@ -141,9 +143,9 @@ const PreciseCollisionGame = () => {
           id,
           text: 'SAFE',
           color: 'text-green-500',
-          styleType: 'arc',
+          styleType: 'arc', // we'll float them straight up now
           createdAt: Date.now(),
-          xOffset: getRandomArcOffset(),
+          // Removed xOffset to ensure center alignment
         },
       ]);
       setTimeout(() => {
@@ -152,9 +154,7 @@ const PreciseCollisionGame = () => {
       return;
     }
 
-    // Malicious notification: spawn two notifications
-
-    // 1) Red "THREAT" indicator (arc style) lasting 5000ms
+    // Malicious notifications: 1) THREAT, 2) Calm (countermeasure)
     const threatId = Date.now() + Math.random();
     setFloatingHits((curr) => [
       ...curr,
@@ -164,15 +164,14 @@ const PreciseCollisionGame = () => {
         color: 'text-red-500',
         styleType: 'arc',
         createdAt: Date.now(),
-        xOffset: getRandomArcOffset(),
+        // Removed xOffset
       },
     ]);
     setTimeout(() => {
       setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== threatId));
     }, 5000);
 
-    // 2) Calm pale purple countermeasure notification lasting 6000ms,
-    // using fixed positions from calmPositions.
+    // Calm countermeasure
     const cmId = Date.now() + Math.random();
     const countermeasures = [
       'SQL Injection',
@@ -199,12 +198,13 @@ const PreciseCollisionGame = () => {
     const posIndex = calmIndexRef.current;
     const chosenPos = calmPositions[posIndex];
     calmIndexRef.current = (posIndex + 1) % calmPositions.length;
+
     setFloatingHits((curr) => [
       ...curr,
       {
         id: cmId,
         text: cmText,
-        color: 'text-purple-300', // Pale purple
+        color: 'text-purple-300',
         styleType: 'calm',
         createdAt: Date.now(),
         top: chosenPos.top,
@@ -215,14 +215,6 @@ const PreciseCollisionGame = () => {
       setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== cmId));
     }, 6000);
   };
-
-  // Helper for generating a random arc offset (for arc notifications)
-  function getRandomArcOffset() {
-    const angleDegrees = Math.random() * 30 - 15;
-    const angleRad = (angleDegrees * Math.PI) / 180;
-    const finalY = 70;
-    return finalY * Math.tan(angleRad);
-  }
 
   // Main game loop
   useEffect(() => {
@@ -256,6 +248,7 @@ const PreciseCollisionGame = () => {
           };
           setPackages((p) => [...p, newPackage]);
 
+          // Basic "burst" logic
           if (!burstModeRef.current || burstModeRef.current.remaining <= 0) {
             const comboSize = Math.floor(Math.random() * 4) + 1;
             burstModeRef.current = {
@@ -286,6 +279,7 @@ const PreciseCollisionGame = () => {
           return prev
             .map((pkg) => {
               if (pkg.status === 'threat') {
+                // Threat packages move more slowly
                 const horizontalSpeed = conveyorSpeed * 0.2;
                 return {
                   ...pkg,
@@ -319,6 +313,7 @@ const PreciseCollisionGame = () => {
                 centerPoint: newCenterPoint,
               };
             })
+            // Filter out old packages
             .filter((pkg) => {
               const now = Date.now();
               const packageAge = now - (pkg.creationTime || now);
@@ -350,7 +345,7 @@ const PreciseCollisionGame = () => {
         }
       }
 
-      // Manual inspection when logo is down
+      // Manual inspection
       if (logoPosition === 'down' && !inspecting) {
         const inspLine = logoHitscanRef.current;
         const toInspect = packages.filter((p) => {
@@ -421,44 +416,35 @@ const PreciseCollisionGame = () => {
     };
   }, [gameActive, inspecting, logoPosition, packages, autoPilot, conveyorSpeed]);
 
-  // Redesigned minimalist scoreboard with purple labels and extra bold text
-const renderScoreboard = () => {
-  return (
-    <div className="absolute top-4 left-4 bg-gray-100 bg-opacity-80 p-3 rounded-sm flex flex-col gap-1 text-center">
-      <div className="flex justify-between items-center">
-        <span className="text-xs uppercase font-extrabold text-purple-300">
-          Safe
-        </span>
-        <span className="text-base font-medium text-green-500">
-          {score.safe}
-        </span>
+  // Scoreboard with a fixed width so it doesn't resize
+  const renderScoreboard = () => {
+    return (
+      <div
+        className="absolute top-4 left-4 bg-gray-100 bg-opacity-80 p-3 rounded-sm flex flex-col gap-1 text-center"
+        style={{ width: '180px' }}
+      >
+        <div className="flex justify-between items-center">
+          <span className="text-xs uppercase font-extrabold text-purple-300">Safe</span>
+          <span className="text-base font-extrabold text-purple-300">{score.safe}</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-xs uppercase font-extrabold text-purple-300">Threats</span>
+          <span className="text-base font-extrabold text-purple-300">{score.malicious}</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-xs uppercase font-extrabold text-purple-300">Missed</span>
+          <span className="text-base font-extrabold text-purple-300">{score.missed}</span>
+        </div>
+        <div className="mt-1">
+          <span className="text-xs font-extrabold text-purple-300 uppercase">
+            {autoPilot ? 'QUBE MODE ACTIVE' : 'MANUAL MODE'}
+          </span>
+        </div>
       </div>
-      <div className="flex justify-between items-center">
-        <span className="text-xs uppercase font-extrabold text-purple-300">
-          Threats
-        </span>
-        <span className="text-base font-medium text-red-500">
-          {score.malicious}
-        </span>
-      </div>
-      <div className="flex justify-between items-center">
-        <span className="text-xs uppercase font-extrabold text-purple-300">
-          Missed
-        </span>
-        <span className="text-base font-medium text-yellow-500">
-          {score.missed}
-        </span>
-      </div>
-      <div className="mt-1">
-        <span className="text-xs font-extrabold text-purple-400 uppercase">
-          {autoPilot ? 'QUBE MODE' : 'MANUAL MODE'}
-        </span>
-      </div>
-    </div>
-  );
-};
+    );
+  };
 
-
+  // Renders each package
   const renderPackage = (pkg) => {
     let packageStyle = '';
     let packageText = '';
@@ -580,6 +566,7 @@ const renderScoreboard = () => {
     );
   };
 
+  // Inspection beam
   const renderInspectionBeam = () => {
     if (inspecting && currentInspection) {
       return (
@@ -598,6 +585,7 @@ const renderScoreboard = () => {
     return null;
   };
 
+  // Debug collision visuals
   const renderCollisionDebug = () => {
     if (!debugMode) return null;
     const inspectionPoint = logoHitscanRef.current;
@@ -627,13 +615,15 @@ const renderScoreboard = () => {
     );
   };
 
+  // Floating notifications: center them exactly on the line, no sideways drift
   const renderFloatingHits = () => {
-    // Arc notifications will align to the inspection line
     const inspectionPoint = logoHitscanRef.current || 0;
+    // We’ll float them up from around 120px top
     const arcTopPos = '120px';
 
     return floatingHits.map((hit) => {
       if (hit.styleType === 'arc') {
+        // Straight-up float from the inspection line
         return (
           <div
             key={hit.id}
@@ -642,14 +632,13 @@ const renderScoreboard = () => {
               top: arcTopPos,
               left: `${inspectionPoint}px`,
               transform: 'translateX(-50%)',
-              '--float-x': `${hit.xOffset}px`,
             }}
           >
             {hit.text}
           </div>
         );
       } else {
-        // Calm notifications use their fixed positions (from calmPositions)
+        // Calm notifications remain at fixed positions
         return (
           <div
             key={hit.id}
@@ -674,11 +663,13 @@ const renderScoreboard = () => {
           50% { transform: translateY(-5px); }
         }
         .animate-bob { animation: bob 2s ease-in-out infinite; }
+
         @keyframes bobIntense {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-15px); }
         }
         .animate-bob-intense { animation: bobIntense 1.2s ease-in-out infinite; }
+
         @keyframes verticalRattle {
           0%, 15%, 35%, 60%, 85%, 100% { transform: translateY(0); }
           7% { transform: translateY(-3px); }
@@ -695,6 +686,7 @@ const renderScoreboard = () => {
           animation: verticalRattle 3.5s ease-in-out infinite;
           animation-delay: calc(var(--random-delay) * -3.5s);
         }
+
         @keyframes wiggleInner {
           0% { transform: rotate(0deg); }
           35% { transform: rotate(2.5deg); }
@@ -703,42 +695,57 @@ const renderScoreboard = () => {
           100% { transform: rotate(0deg); }
         }
         .animate-wiggle-inner { animation: wiggleInner 1.1s ease-in-out 1; }
+
         @keyframes fallAnimation {
           0% { top: 320px; transform: rotate(0deg); }
           100% { top: 600px; transform: rotate(45deg); }
         }
         .falling-threat { animation: fallAnimation 2s ease-in forwards; }
+
         @keyframes fadeTransition {
           0% { opacity: 0; }
           100% { opacity: 1; }
         }
-        .fade-in { animation: fadeTransition 0.4s ease-in forwards; animation-play-state: running; }
+        .fade-in {
+          animation: fadeTransition 0.4s ease-in forwards;
+          animation-play-state: running;
+        }
+
         @keyframes pulseSubtle {
           0%, 100% { background-color: #6b21a8; }
           50% { background-color: #9333ea; }
         }
-        .animate-pulse-subtle { animation: pulseSubtle 1.2s ease-in-out infinite; }
-        @keyframes floatArcRand {
+        .animate-pulse-subtle {
+          animation: pulseSubtle 1.2s ease-in-out infinite;
+        }
+
+        /* Updated float: straight up from the line */
+        @keyframes floatStraightUp {
           0% {
-            transform: translate(0, 0) scale(1);
+            transform: translate(-50%, 0) scale(1);
             opacity: 1;
           }
           50% {
-            transform: translate(calc(var(--float-x) * 0.5), -35px) scale(1.1);
+            transform: translate(-50%, -35px) scale(1.1);
           }
           100% {
-            transform: translate(var(--float-x), -70px) scale(0.9);
+            transform: translate(-50%, -70px) scale(0.9);
             opacity: 0;
           }
         }
-        .arc-float { animation: floatArcRand 5s ease-out forwards; }
+        .arc-float {
+          animation: floatStraightUp 5s ease-out forwards;
+        }
+
         @keyframes calmFloat {
           0% { opacity: 0; transform: translate(-50%, 20px); }
           50% { opacity: 1; transform: translate(-50%, 0px); }
           80% { opacity: 1; transform: translate(-50%, 0px); }
           100% { opacity: 0; transform: translate(-50%, 0px); }
         }
-        .calm-float { animation: calmFloat 6s ease forwards; }
+        .calm-float {
+          animation: calmFloat 6s ease forwards;
+        }
       `}</style>
 
       <div
@@ -746,6 +753,7 @@ const renderScoreboard = () => {
         style={{ height: '500px' }}
         ref={gameAreaRef}
       >
+        {/* Top-right buttons */}
         <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
           <button
             onClick={toggleDebugMode}
@@ -769,6 +777,7 @@ const renderScoreboard = () => {
           </button>
         </div>
 
+        {/* Debug: conveyor speed */}
         {debugMode && (
           <div className="absolute bottom-4 right-4 bg-white px-2 py-1 rounded text-xs">
             Speed: {Math.round(conveyorSpeed)}
@@ -777,7 +786,8 @@ const renderScoreboard = () => {
 
         {renderScoreboard()}
 
-        <div ref={gameAreaRef} className="relative w-full h-full">
+        <div className="relative w-full h-full">
+          {/* Conveyor belt */}
           <div
             className={`absolute h-5 bg-gradient-to-r from-purple-100 to-purple-200 rounded-full ${
               inspecting && !autoPilot
@@ -793,6 +803,7 @@ const renderScoreboard = () => {
             }}
           ></div>
 
+          {/* Inspection line debug */}
           {debugMode && logoHitscanRef.current && (
             <div
               className="absolute h-full w-0.5 bg-purple-500 opacity-30 z-0"
@@ -802,6 +813,7 @@ const renderScoreboard = () => {
 
           {renderCollisionDebug()}
 
+          {/* Company Logo (clickable) */}
           <Logo
             logoPosition={logoPosition}
             isHovered={isHovered}
