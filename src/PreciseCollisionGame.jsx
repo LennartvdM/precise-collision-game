@@ -227,6 +227,33 @@ const PreciseCollisionGame = () => {
     }, 6000);
   };
 
+  /**
+   * Schedules a precise duck for autopilot so it hits the center exactly.
+   * This is purely cosmetic. If multiple packages arrive, it can schedule multiple ducks.
+   */
+  function schedulePreciseDuck(target) {
+    const inspLine = logoHitscanRef.current;
+    if (!inspLine || !target || !target.centerPoint) return;
+
+    // Distance from the center line
+    const dist = Math.abs(target.centerPoint.x - inspLine);
+    // Speed in px/second
+    const speedPxPerSec = conveyorSpeed;
+    // Time in ms until the package is exactly at the line
+    const timeToCenterMs = (dist / speedPxPerSec) * 1000;
+
+    // Subtract a small offset so the inspection finishes exactly on center
+    const offsetMs = 30; // tweak to taste
+    const plannedDuckTime = Math.max(0, timeToCenterMs - offsetMs);
+
+    // Schedule the duck
+    setTimeout(() => {
+      // If autopilot is still on, we haven't started inspecting, etc.
+      if (!autoPilot || inspecting || logoPosition !== 'up') return;
+      setLogoPosition('down');
+    }, plannedDuckTime);
+  }
+
   // Main game loop
   useEffect(() => {
     const gameLoop = (timestamp) => {
@@ -339,24 +366,33 @@ const PreciseCollisionGame = () => {
         });
       }
 
-      // AutoPilot: if we see a package near the line, set the logo down
+      // Autopilot: find a package that will soon be at the line and schedule a precise duck
       if (autoPilot && !inspecting && gameActive && logoPosition === 'up') {
         const inspLine = logoHitscanRef.current;
         const unprocessed = packages.filter((p) => p.status === 'unprocessed');
+        // We look for anything within ~80px so we have time to schedule the duck
         const toScan = unprocessed.filter((p) => {
           if (!p || !p.centerPoint) return false;
-          // Increase threshold so we catch them in time
           const dist = Math.abs(p.centerPoint.x - inspLine);
-          return dist <= 20;
+          return dist <= 80;
         });
+
         if (toScan.length > 0) {
-          // We only set the logo down here, scanning will happen below
-          setLogoPosition('down');
+          // Sort so we handle the closest package first
+          toScan.sort((a, b) => {
+            const aC = a.centerPoint.x;
+            const bC = b.centerPoint.x;
+            return Math.abs(inspLine - aC) - Math.abs(inspLine - bC);
+          });
+
+          // Take the closest package
+          const target = toScan[0];
+          // Schedule a precise duck
+          schedulePreciseDuck(target);
         }
       }
 
-      // **Unified scanning logic** (manual + autopilot):
-      // If the logo is down, we check for unprocessed packages at the line
+      // Shared scanning logic (manual + autopilot)
       if (logoPosition === 'down' && !inspecting) {
         const inspLine = logoHitscanRef.current;
         const toInspect = packages.filter((p) => {
