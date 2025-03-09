@@ -238,12 +238,15 @@ const PreciseCollisionGame = () => {
   /**
    * Generates a fountain-like arc offset.
    */
-  function getRandomArcOffset() {
-    const angleDegrees = Math.random() * 120 - 60;
-    const angleRad = (angleDegrees * Math.PI) / 180;
-    const finalY = 140;
-    return finalY * Math.tan(angleRad);
-  }
+function getRandomArcOffset() {
+  const angleDegrees = Math.random() * 120 - 60;
+  const angleRad = (angleDegrees * Math.PI) / 180;
+  const finalY = 140;
+  const offset = finalY * Math.tan(angleRad);
+  const maxOffset = 80; // Adjust as needed
+  return Math.max(-maxOffset, Math.min(maxOffset, offset));
+}
+
 
   // Main game loop
   useEffect(() => {
@@ -704,7 +707,7 @@ const PreciseCollisionGame = () => {
           }
           2% {
             /* Rapid initial pop with high speed */
-            transform: translate(calc(-50% + var(--float-x) * 1.5), -20px) scale(1.5);
+            transform: translate(calc(-50% + var(--float-x) * 1.0), -20px) scale(1.5);
             opacity: 1;
           }
           15% {
