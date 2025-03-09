@@ -18,6 +18,9 @@ const PreciseCollisionGame = () => {
   const animationRef = useRef(null);
   const lastTimeRef = useRef(0);
 
+  // **IMPORTANT**: nextPackageTimeRef is needed for package spawning
+  const nextPackageTimeRef = useRef(0);
+
   // Local center (inspection line) in container coordinates
   const inspectionLineRef = useRef(0);
 
@@ -35,7 +38,7 @@ const PreciseCollisionGame = () => {
   // Floating notifications
   const [floatingHits, setFloatingHits] = useState([]);
 
-  // Fixed positions for calm notifications (countermeasures)
+  // Positions for calm (countermeasure) notifications
   const calmPositions = [
     { top: 40, left: 'calc(50% - 120px)' },
     { top: 60, left: 'calc(50% + 100px)' },
@@ -46,11 +49,13 @@ const PreciseCollisionGame = () => {
   ];
   const calmIndexRef = useRef(0);
 
-  // Toggle functions
+  // Toggle flags
   const toggleDebugMode = () => setDebugMode((d) => !d);
   const toggleAutoPilot = () => {
     setAutoPilot((a) => {
-      if (!a) setScore((prev) => ({ ...prev, missed: 0 }));
+      if (!a) {
+        setScore((prev) => ({ ...prev, missed: 0 }));
+      }
       return !a;
     });
   };
@@ -71,15 +76,20 @@ const PreciseCollisionGame = () => {
       const elapsed = timestamp - startTime;
       const targetSpeed = inspecting && !autoPilot ? 0 : 120;
       const duration = inspecting && !autoPilot ? 50 : 250;
+
       const progress = Math.min(elapsed / duration, 1);
       const eased =
         progress < 0.5
           ? 4 * progress * progress * progress
           : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
       const startSpeed = inspecting && !autoPilot ? 120 : 0;
       const newSpeed = startSpeed + (targetSpeed - startSpeed) * eased;
+
       setConveyorSpeed(newSpeed);
-      if (progress < 1) animationId = requestAnimationFrame(animate);
+      if (progress < 1) {
+        animationId = requestAnimationFrame(animate);
+      }
     };
 
     animationId = requestAnimationFrame(animate);
@@ -93,6 +103,7 @@ const PreciseCollisionGame = () => {
     const updateInspectionLine = () => {
       if (gameAreaRef.current) {
         const rect = gameAreaRef.current.getBoundingClientRect();
+        // The local center is half the container's width
         inspectionLineRef.current = rect.width / 2;
       }
     };
@@ -109,7 +120,7 @@ const PreciseCollisionGame = () => {
     }
   };
 
-  // Handle wiggle animation end
+  // Wiggle end
   const handleWiggleEnd = (e) => {
     if (e.animationName === 'wiggleInner') setWiggleActive(false);
   };
@@ -117,6 +128,7 @@ const PreciseCollisionGame = () => {
   // Spawn notifications
   const spawnHitIndicator = (isMalicious) => {
     if (!isMalicious) {
+      // SAFE
       const id = Date.now() + Math.random();
       setFloatingHits((curr) => [
         ...curr,
@@ -135,7 +147,7 @@ const PreciseCollisionGame = () => {
       return;
     }
 
-    // Spawn "THREAT" (arc)
+    // THREAT (arc) + Calm countermeasure
     const threatId = Date.now() + Math.random();
     setFloatingHits((curr) => [
       ...curr,
@@ -152,7 +164,6 @@ const PreciseCollisionGame = () => {
       setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== threatId));
     }, 5000);
 
-    // Spawn calm countermeasure at fixed positions
     const cmId = Date.now() + Math.random();
     const countermeasures = [
       'SQL Injection',
@@ -252,6 +263,7 @@ const PreciseCollisionGame = () => {
             nextInterval = burstModeRef.current.postComboDelay;
           }
           burstModeRef.current.remaining--;
+
           const minTime = (minDist / packageSpeedRef.current) * 1000;
           nextInterval = Math.max(minTime, nextInterval);
           nextPackageTimeRef.current = timestamp + nextInterval;
@@ -310,7 +322,7 @@ const PreciseCollisionGame = () => {
         });
       }
 
-      // AutoPilot: inspect packages at inspection line
+      // autoPilot
       if (autoPilot && !inspecting && gameActive && logoPosition === 'up') {
         const inspLine = inspectionLineRef.current;
         const unprocessed = packages.filter((p) => p.status === 'unprocessed');
@@ -330,7 +342,7 @@ const PreciseCollisionGame = () => {
         }
       }
 
-      // Manual inspection when logo is down
+      // manual inspection
       if (logoPosition === 'down' && !inspecting) {
         const inspLine = inspectionLineRef.current;
         const toInspect = packages.filter((p) => {
@@ -401,6 +413,7 @@ const PreciseCollisionGame = () => {
     };
   }, [gameActive, inspecting, logoPosition, packages, autoPilot, conveyorSpeed]);
 
+  // Render each package
   const renderPackage = (pkg) => {
     let packageStyle = '';
     let packageText = '';
@@ -527,6 +540,7 @@ const PreciseCollisionGame = () => {
     return null;
   };
 
+  // Scoreboard
   const renderScoreboard = () => {
     return (
       <div className="absolute top-4 left-4 bg-white p-4 rounded-lg shadow-md flex flex-col gap-2">
@@ -555,11 +569,13 @@ const PreciseCollisionGame = () => {
     );
   };
 
+  // Debug line
   const renderCollisionDebug = () => {
     if (!debugMode) return null;
     const inspLine = inspectionLineRef.current;
     return (
       <>
+        {/* The line at local center */}
         <div
           className="absolute h-full w-0.5 bg-red-500 opacity-50 z-10"
           style={{ left: inspLine }}
@@ -572,6 +588,7 @@ const PreciseCollisionGame = () => {
     );
   };
 
+  // Render floating notifications
   const renderFloatingHits = () => {
     const inspLine = inspectionLineRef.current;
     const arcTopPos = '120px';
@@ -616,12 +633,18 @@ const PreciseCollisionGame = () => {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-5px); }
         }
-        .animate-bob { animation: bob 2s ease-in-out infinite; }
+        .animate-bob {
+          animation: bob 2s ease-in-out infinite;
+        }
+
         @keyframes bobIntense {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-15px); }
         }
-        .animate-bob-intense { animation: bobIntense 1.2s ease-in-out infinite; }
+        .animate-bob-intense {
+          animation: bobIntense 1.2s ease-in-out infinite;
+        }
+
         @keyframes verticalRattle {
           0%, 15%, 35%, 60%, 85%, 100% { transform: translateY(0); }
           7% { transform: translateY(-3px); }
@@ -638,6 +661,7 @@ const PreciseCollisionGame = () => {
           animation: verticalRattle 3.5s ease-in-out infinite;
           animation-delay: calc(var(--random-delay) * -3.5s);
         }
+
         @keyframes wiggleInner {
           0% { transform: rotate(0deg); }
           35% { transform: rotate(2.5deg); }
@@ -645,22 +669,36 @@ const PreciseCollisionGame = () => {
           85% { transform: rotate(0.8deg); }
           100% { transform: rotate(0deg); }
         }
-        .animate-wiggle-inner { animation: wiggleInner 1.1s ease-in-out 1; }
+        .animate-wiggle-inner {
+          animation: wiggleInner 1.1s ease-in-out 1;
+        }
+
         @keyframes fallAnimation {
           0% { top: 320px; transform: rotate(0deg); }
           100% { top: 600px; transform: rotate(45deg); }
         }
-        .falling-threat { animation: fallAnimation 2s ease-in forwards; }
+        .falling-threat {
+          animation: fallAnimation 2s ease-in forwards;
+        }
+
         @keyframes fadeTransition {
           0% { opacity: 0; }
           100% { opacity: 1; }
         }
-        .fade-in { animation: fadeTransition 0.4s ease-in forwards; animation-play-state: running; }
+        .fade-in {
+          animation: fadeTransition 0.4s ease-in forwards;
+          animation-play-state: running;
+        }
+
         @keyframes pulseSubtle {
           0%, 100% { background-color: #6b21a8; }
           50% { background-color: #9333ea; }
         }
-        .animate-pulse-subtle { animation: pulseSubtle 1.2s ease-in-out infinite; }
+        .animate-pulse-subtle {
+          animation: pulseSubtle 1.2s ease-in-out infinite;
+        }
+
+        /* Arc-floating notifications last 5s */
         @keyframes floatArcRand {
           0% {
             transform: translate(0, 0) scale(1);
@@ -674,15 +712,22 @@ const PreciseCollisionGame = () => {
             opacity: 0;
           }
         }
-        .arc-float { animation: floatArcRand 5s ease-out forwards; }
+        .arc-float {
+          animation: floatArcRand 5s ease-out forwards;
+        }
+
+        /* Calm-floating notifications last 4s fade in */
         @keyframes calmFloat {
           0% { opacity: 0; transform: translate(-50%, 20px); }
           50% { opacity: 1; transform: translate(-50%, 0px); }
           100% { opacity: 1; transform: translate(-50%, 0px); }
         }
-        .calm-float { animation: calmFloat 4s ease forwards; }
+        .calm-float {
+          animation: calmFloat 4s ease forwards;
+        }
       `}</style>
 
+      {/* Force a definite container size: 800×500 for debugging */}
       <div
         className="relative bg-gray-50 overflow-hidden"
         style={{ width: '800px', height: '500px', border: '2px solid red' }}
@@ -746,16 +791,3 @@ const PreciseCollisionGame = () => {
             handleMouseEnter={() => handleLogoHover(true)}
             handleMouseLeave={() => handleLogoHover(false)}
             handleAnimationEnd={handleWiggleEnd}
-            logoWidth={logoWidthRef.current}
-          />
-
-          {renderInspectionBeam()}
-          {packages.map(renderPackage)}
-          {renderFloatingHits()}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default PreciseCollisionGame;
