@@ -13,32 +13,32 @@ const PreciseCollisionGame = () => {
   const [autoPilot, setAutoPilot] = useState(false);
   const [conveyorSpeed, setConveyorSpeed] = useState(120);
 
-  // References
+  // Refs for animation and timing
   const gameAreaRef = useRef(null);
   const animationRef = useRef(null);
   const lastTimeRef = useRef(0);
-
-  // **IMPORTANT**: nextPackageTimeRef is needed for package spawning
-  const nextPackageTimeRef = useRef(0);
-
-  // Local center (inspection line) in container coordinates
-  const inspectionLineRef = useRef(0);
-
   const packageSpeedRef = useRef(120);
+  const minPackageIntervalRef = useRef(300);
+  const maxPackageIntervalRef = useRef(1500);
+  const baseSpawnRateRef = useRef(1000);
+  const lastPackageTimeRef = useRef(0);
+  const nextPackageTimeRef = useRef(0);
   const burstModeRef = useRef(false);
+  const gravityRef = useRef(980); // pixels per second squared
 
   // Collision detection
   const logoWidthRef = useRef(80);
+  const logoHitscanRef = useRef(null); // This is our inspection line
   const packageWidthRef = useRef(48);
 
-  // Hover & wiggle
+  // Hover & wiggle states
   const [isHovered, setIsHovered] = useState(false);
   const [wiggleActive, setWiggleActive] = useState(false);
 
   // Floating notifications
   const [floatingHits, setFloatingHits] = useState([]);
 
-  // Positions for calm (countermeasure) notifications
+  // Define 6 fixed positions for calm (countermeasure) notifications in two rough arcs
   const calmPositions = [
     { top: 40, left: 'calc(50% - 120px)' },
     { top: 60, left: 'calc(50% + 100px)' },
@@ -60,13 +60,15 @@ const PreciseCollisionGame = () => {
     });
   };
 
-  // Handle logo hover
+  // Handle logo hover: trigger wiggle once on mouse enter
   const handleLogoHover = (hovering) => {
     setIsHovered(hovering);
-    if (hovering) setWiggleActive(true);
+    if (hovering) {
+      setWiggleActive(true);
+    }
   };
 
-  // Speed transition effect
+  // Setup speed transition
   useEffect(() => {
     let animationId;
     let startTime;
@@ -74,6 +76,7 @@ const PreciseCollisionGame = () => {
     const animate = (timestamp) => {
       if (!startTime) startTime = timestamp;
       const elapsed = timestamp - startTime;
+
       const targetSpeed = inspecting && !autoPilot ? 0 : 120;
       const duration = inspecting && !autoPilot ? 50 : 250;
 
@@ -98,18 +101,18 @@ const PreciseCollisionGame = () => {
     };
   }, [inspecting, autoPilot]);
 
-  // Update inspection line (local center) on resize
+  // Update inspection line (hitscan) on resize
   useEffect(() => {
-    const updateInspectionLine = () => {
+    const updateLogoHitscan = () => {
       if (gameAreaRef.current) {
         const rect = gameAreaRef.current.getBoundingClientRect();
-        // The local center is half the container's width
-        inspectionLineRef.current = rect.width / 2;
+        // Use the center of the game area as the inspection line
+        logoHitscanRef.current = rect.width / 2;
       }
     };
-    updateInspectionLine();
-    window.addEventListener('resize', updateInspectionLine);
-    return () => window.removeEventListener('resize', updateInspectionLine);
+    updateLogoHitscan();
+    window.addEventListener('resize', updateLogoHitscan);
+    return () => window.removeEventListener('resize', updateLogoHitscan);
   }, []);
 
   // Handle logo click
@@ -120,15 +123,17 @@ const PreciseCollisionGame = () => {
     }
   };
 
-  // Wiggle end
+  // Handle wiggle animation end
   const handleWiggleEnd = (e) => {
-    if (e.animationName === 'wiggleInner') setWiggleActive(false);
+    if (e.animationName === 'wiggleInner') {
+      setWiggleActive(false);
+    }
   };
 
-  // Spawn notifications
+  // Helper to spawn floating notifications
   const spawnHitIndicator = (isMalicious) => {
     if (!isMalicious) {
-      // SAFE
+      // SAFE notification (arc style) lasting 5000ms
       const id = Date.now() + Math.random();
       setFloatingHits((curr) => [
         ...curr,
@@ -147,7 +152,9 @@ const PreciseCollisionGame = () => {
       return;
     }
 
-    // THREAT (arc) + Calm countermeasure
+    // Malicious notification: spawn two notifications
+
+    // 1) Red "THREAT" indicator (arc style) lasting 5000ms
     const threatId = Date.now() + Math.random();
     setFloatingHits((curr) => [
       ...curr,
@@ -164,6 +171,8 @@ const PreciseCollisionGame = () => {
       setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== threatId));
     }, 5000);
 
+    // 2) Calm blue countermeasure notification lasting 6000ms,
+    // using fixed positions from calmPositions.
     const cmId = Date.now() + Math.random();
     const countermeasures = [
       'SQL Injection',
@@ -207,7 +216,7 @@ const PreciseCollisionGame = () => {
     }, 6000);
   };
 
-  // Generate random arc offset for arc notifications
+  // Helper for generating a random arc offset (for arc notifications)
   function getRandomArcOffset() {
     const angleDegrees = Math.random() * 30 - 15;
     const angleRad = (angleDegrees * Math.PI) / 180;
@@ -263,7 +272,6 @@ const PreciseCollisionGame = () => {
             nextInterval = burstModeRef.current.postComboDelay;
           }
           burstModeRef.current.remaining--;
-
           const minTime = (minDist / packageSpeedRef.current) * 1000;
           nextInterval = Math.max(minTime, nextInterval);
           nextPackageTimeRef.current = timestamp + nextInterval;
@@ -290,7 +298,7 @@ const PreciseCollisionGame = () => {
                 ...pkg.centerPoint,
                 x: newX + pkg.width / 2,
               };
-              const inspLine = inspectionLineRef.current;
+              const inspLine = logoHitscanRef.current;
               if (pkg.status === 'unprocessed' && newX > inspLine) {
                 if (pkg.type === 'malicious') {
                   setScore((s) => ({ ...s, missed: s.missed + 1 }));
@@ -315,16 +323,16 @@ const PreciseCollisionGame = () => {
               const now = Date.now();
               const packageAge = now - (pkg.creationTime || now);
               const lifetimeExceeded = packageAge > 13000;
-              const isOffscreenX = pkg.x > 800 + 100; // because container is 800px wide
+              const isOffscreenX = pkg.x > window.innerWidth + 100;
               const isOffscreenY = pkg.status === 'threat' && pkg.y > 650;
               return !lifetimeExceeded && !isOffscreenX && !isOffscreenY;
             });
         });
       }
 
-      // autoPilot
+      // AutoPilot: automatically inspect packages at the inspection line
       if (autoPilot && !inspecting && gameActive && logoPosition === 'up') {
-        const inspLine = inspectionLineRef.current;
+        const inspLine = logoHitscanRef.current;
         const unprocessed = packages.filter((p) => p.status === 'unprocessed');
         const toScan = unprocessed.filter((p) => {
           if (!p || !p.centerPoint) return false;
@@ -342,9 +350,9 @@ const PreciseCollisionGame = () => {
         }
       }
 
-      // manual inspection
+      // Manual inspection when logo is down
       if (logoPosition === 'down' && !inspecting) {
-        const inspLine = inspectionLineRef.current;
+        const inspLine = logoHitscanRef.current;
         const toInspect = packages.filter((p) => {
           if (p.status !== 'unprocessed') return false;
           const left = p.x;
@@ -413,7 +421,6 @@ const PreciseCollisionGame = () => {
     };
   }, [gameActive, inspecting, logoPosition, packages, autoPilot, conveyorSpeed]);
 
-  // Render each package
   const renderPackage = (pkg) => {
     let packageStyle = '';
     let packageText = '';
@@ -471,8 +478,8 @@ const PreciseCollisionGame = () => {
       const styles = {
         left: `${pkg.x}px`,
         width: `${pkg.width}px`,
-        top: '290px',
       };
+
       if (pkg.status === 'inspecting') {
         return {
           ...styles,
@@ -482,6 +489,7 @@ const PreciseCollisionGame = () => {
       } else if (pkg.status === 'safe') {
         return {
           ...styles,
+          top: '290px',
           transition:
             'background-color 0.3s, top 0.8s cubic-bezier(0.34, 1.1, 0.64, 1.1)',
         };
@@ -497,7 +505,7 @@ const PreciseCollisionGame = () => {
         }
         return styles;
       }
-      return styles;
+      return { ...styles, top: '290px' };
     };
 
     return (
@@ -509,6 +517,22 @@ const PreciseCollisionGame = () => {
           '--random-delay': pkg.randomDelay || 0,
         }}
       >
+        {debugMode && (
+          <div
+            className="absolute h-full bg-red-500 z-0"
+            style={{
+              left: '50%',
+              marginLeft: `-${pkg.centerPoint?.width / 2 || 2}px`,
+              width: `${pkg.centerPoint?.width || 4}px`,
+              opacity: 0.7,
+            }}
+          ></div>
+        )}
+
+        {debugMode && (
+          <div className="absolute h-full w-1 bg-gray-400 opacity-40 z-0" />
+        )}
+
         <div className={`z-10 px-2 font-semibold ${textColor} relative`}>
           <div
             className={
@@ -540,7 +564,6 @@ const PreciseCollisionGame = () => {
     return null;
   };
 
-  // Scoreboard
   const renderScoreboard = () => {
     return (
       <div className="absolute top-4 left-4 bg-white p-4 rounded-lg shadow-md flex flex-col gap-2">
@@ -557,11 +580,7 @@ const PreciseCollisionGame = () => {
           <div className="text-xl font-bold text-gray-600">{score.missed}</div>
         </div>
         <div className="mt-2 text-center">
-          <div
-            className={`text-xs font-semibold ${
-              autoPilot ? 'text-purple-600' : 'text-gray-400'
-            }`}
-          >
+          <div className={`text-xs font-semibold ${autoPilot ? 'text-purple-600' : 'text-gray-400'}`}>
             {autoPilot ? 'QUBE MODE ACTIVE' : 'MANUAL MODE'}
           </div>
         </div>
@@ -569,28 +588,38 @@ const PreciseCollisionGame = () => {
     );
   };
 
-  // Debug line
   const renderCollisionDebug = () => {
     if (!debugMode) return null;
-    const inspLine = inspectionLineRef.current;
+    const inspectionPoint = logoHitscanRef.current;
     return (
       <>
-        {/* The line at local center */}
         <div
           className="absolute h-full w-0.5 bg-red-500 opacity-50 z-10"
-          style={{ left: inspLine }}
+          style={{ left: inspectionPoint }}
         >
           <div className="absolute top-2 left-2 text-xs bg-white px-2 py-1 rounded shadow-sm">
             Inspection Line
+          </div>
+        </div>
+        <div
+          className="absolute h-24 bg-blue-200 opacity-20 pointer-events-none"
+          style={{
+            top: '170px',
+            left: inspectionPoint - logoWidthRef.current / 2,
+            width: logoWidthRef.current,
+          }}
+        >
+          <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs bg-white px-2 py-1 rounded shadow-sm whitespace-nowrap">
+            Click Detection Area
           </div>
         </div>
       </>
     );
   };
 
-  // Render floating notifications
   const renderFloatingHits = () => {
-    const inspLine = inspectionLineRef.current;
+    // Arc notifications will align to the inspection line
+    const inspectionPoint = logoHitscanRef.current || 0;
     const arcTopPos = '120px';
 
     return floatingHits.map((hit) => {
@@ -601,7 +630,7 @@ const PreciseCollisionGame = () => {
             className={`absolute arc-float text-lg font-bold ${hit.color}`}
             style={{
               top: arcTopPos,
-              left: `${inspLine}px`,
+              left: `${inspectionPoint}px`,
               transform: 'translateX(-50%)',
               '--float-x': `${hit.xOffset}px`,
             }}
@@ -610,6 +639,7 @@ const PreciseCollisionGame = () => {
           </div>
         );
       } else {
+        // Calm notifications use their fixed positions (from calmPositions)
         return (
           <div
             key={hit.id}
@@ -633,18 +663,12 @@ const PreciseCollisionGame = () => {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-5px); }
         }
-        .animate-bob {
-          animation: bob 2s ease-in-out infinite;
-        }
-
+        .animate-bob { animation: bob 2s ease-in-out infinite; }
         @keyframes bobIntense {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-15px); }
         }
-        .animate-bob-intense {
-          animation: bobIntense 1.2s ease-in-out infinite;
-        }
-
+        .animate-bob-intense { animation: bobIntense 1.2s ease-in-out infinite; }
         @keyframes verticalRattle {
           0%, 15%, 35%, 60%, 85%, 100% { transform: translateY(0); }
           7% { transform: translateY(-3px); }
@@ -661,7 +685,6 @@ const PreciseCollisionGame = () => {
           animation: verticalRattle 3.5s ease-in-out infinite;
           animation-delay: calc(var(--random-delay) * -3.5s);
         }
-
         @keyframes wiggleInner {
           0% { transform: rotate(0deg); }
           35% { transform: rotate(2.5deg); }
@@ -669,36 +692,22 @@ const PreciseCollisionGame = () => {
           85% { transform: rotate(0.8deg); }
           100% { transform: rotate(0deg); }
         }
-        .animate-wiggle-inner {
-          animation: wiggleInner 1.1s ease-in-out 1;
-        }
-
+        .animate-wiggle-inner { animation: wiggleInner 1.1s ease-in-out 1; }
         @keyframes fallAnimation {
           0% { top: 320px; transform: rotate(0deg); }
           100% { top: 600px; transform: rotate(45deg); }
         }
-        .falling-threat {
-          animation: fallAnimation 2s ease-in forwards;
-        }
-
+        .falling-threat { animation: fallAnimation 2s ease-in forwards; }
         @keyframes fadeTransition {
           0% { opacity: 0; }
           100% { opacity: 1; }
         }
-        .fade-in {
-          animation: fadeTransition 0.4s ease-in forwards;
-          animation-play-state: running;
-        }
-
+        .fade-in { animation: fadeTransition 0.4s ease-in forwards; animation-play-state: running; }
         @keyframes pulseSubtle {
           0%, 100% { background-color: #6b21a8; }
           50% { background-color: #9333ea; }
         }
-        .animate-pulse-subtle {
-          animation: pulseSubtle 1.2s ease-in-out infinite;
-        }
-
-        /* Arc-floating notifications last 5s */
+        .animate-pulse-subtle { animation: pulseSubtle 1.2s ease-in-out infinite; }
         @keyframes floatArcRand {
           0% {
             transform: translate(0, 0) scale(1);
@@ -712,25 +721,18 @@ const PreciseCollisionGame = () => {
             opacity: 0;
           }
         }
-        .arc-float {
-          animation: floatArcRand 5s ease-out forwards;
-        }
-
-        /* Calm-floating notifications last 4s fade in */
+        .arc-float { animation: floatArcRand 5s ease-out forwards; }
         @keyframes calmFloat {
           0% { opacity: 0; transform: translate(-50%, 20px); }
           50% { opacity: 1; transform: translate(-50%, 0px); }
           100% { opacity: 1; transform: translate(-50%, 0px); }
         }
-        .calm-float {
-          animation: calmFloat 4s ease forwards;
-        }
+        .calm-float { animation: calmFloat 4s ease forwards; }
       `}</style>
 
-      {/* Force a definite container size: 800×500 for debugging */}
       <div
-        className="relative bg-gray-50 overflow-hidden"
-        style={{ width: '800px', height: '500px', border: '2px solid red' }}
+        className="relative w-full max-w-4xl mx-auto bg-gray-50 overflow-hidden"
+        style={{ height: '500px' }}
         ref={gameAreaRef}
       >
         <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
@@ -764,7 +766,7 @@ const PreciseCollisionGame = () => {
 
         {renderScoreboard()}
 
-        <div className="relative w-full h-full">
+        <div ref={gameAreaRef} className="relative w-full h-full">
           <div
             className={`absolute h-5 bg-gradient-to-r from-purple-100 to-purple-200 rounded-full ${
               inspecting && !autoPilot
@@ -780,7 +782,14 @@ const PreciseCollisionGame = () => {
             }}
           ></div>
 
-          {debugMode && inspectionLineRef.current && renderCollisionDebug()}
+          {debugMode && logoHitscanRef.current && (
+            <div
+              className="absolute h-full w-0.5 bg-purple-500 opacity-30 z-0"
+              style={{ left: logoHitscanRef.current }}
+            ></div>
+          )}
+
+          {renderCollisionDebug()}
 
           <Logo
             logoPosition={logoPosition}
@@ -791,3 +800,16 @@ const PreciseCollisionGame = () => {
             handleMouseEnter={() => handleLogoHover(true)}
             handleMouseLeave={() => handleLogoHover(false)}
             handleAnimationEnd={handleWiggleEnd}
+            logoWidth={logoWidthRef.current}
+          />
+
+          {renderInspectionBeam()}
+          {packages.map(renderPackage)}
+          {renderFloatingHits()}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default PreciseCollisionGame;
