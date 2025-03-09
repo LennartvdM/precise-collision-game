@@ -63,12 +63,15 @@ const PreciseCollisionGame = () => {
     });
   };
 
-  // Handle triple-click on "Threats" label to toggle debug button visibility
+  // Handle triple-click on "Threats" label
   const handleThreatsLabelClick = () => {
+    console.log("Threats label clicked");
     threatsClickRef.current++;
+    console.log("Click count:", threatsClickRef.current);
     if (threatsClickRef.current >= 3) {
       threatsClickRef.current = 0;
       setDebugHidden((prev) => !prev);
+      console.log("Toggling debugHidden to", !debugHidden);
     }
   };
 
@@ -101,7 +104,6 @@ const PreciseCollisionGame = () => {
   useEffect(() => {
     let animationId;
     let startTime;
-
     const animate = (timestamp) => {
       if (!startTime) startTime = timestamp;
       const elapsed = timestamp - startTime;
@@ -119,7 +121,6 @@ const PreciseCollisionGame = () => {
         animationId = requestAnimationFrame(animate);
       }
     };
-
     animationId = requestAnimationFrame(animate);
     return () => {
       if (animationId) cancelAnimationFrame(animationId);
@@ -139,18 +140,14 @@ const PreciseCollisionGame = () => {
     return () => window.removeEventListener('resize', updateLogoHitscan);
   }, []);
 
-  /**
-   * Schedules a precise duck for autopilot.
-   * Computes the time until the package's center reaches the inspection line,
-   * then sets the logo down with a small offset.
-   */
+  // Schedule precise duck (for autopilot)
   function schedulePreciseDuck(target) {
     const inspLine = logoHitscanRef.current;
     if (!inspLine || !target || !target.centerPoint) return;
     const dist = Math.abs(target.centerPoint.x - inspLine);
     const speedPxPerSec = conveyorSpeed;
     const timeToCenterMs = (dist / speedPxPerSec) * 1000;
-    const offsetMs = 30; // tweak as desired for perfect timing
+    const offsetMs = 30;
     const plannedDuckTime = Math.max(0, timeToCenterMs - offsetMs);
     setTimeout(() => {
       if (!autoPilot || inspecting || logoPosition !== 'up') return;
@@ -238,7 +235,7 @@ const PreciseCollisionGame = () => {
 
   // Fountain-like arc offset for floating notifications
   function getRandomArcOffset() {
-    const angleDegrees = Math.random() * 120 - 60; // range: -60° to +60°
+    const angleDegrees = Math.random() * 120 - 60;
     const angleRad = (angleDegrees * Math.PI) / 180;
     const finalY = 140;
     return finalY * Math.tan(angleRad);
@@ -338,7 +335,7 @@ const PreciseCollisionGame = () => {
         );
       }
 
-      // Autopilot: schedule precise duck if a package is coming near the line
+      // Autopilot: schedule a precise duck if a package is coming near the line
       if (autoPilot && !inspecting && gameActive && logoPosition === 'up') {
         const inspLine = logoHitscanRef.current;
         const unprocessed = packages.filter((p) => p.status === 'unprocessed');
@@ -358,7 +355,7 @@ const PreciseCollisionGame = () => {
         }
       }
 
-      // Unified scanning logic (manual + autopilot)
+      // Shared scanning logic (manual + autopilot)
       if (logoPosition === 'down' && !inspecting) {
         const inspLine = logoHitscanRef.current;
         const toInspect = packages.filter((p) => {
@@ -415,14 +412,13 @@ const PreciseCollisionGame = () => {
 
       animationRef.current = requestAnimationFrame(gameLoop);
     };
-
     animationRef.current = requestAnimationFrame(gameLoop);
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
   }, [gameActive, inspecting, logoPosition, packages, autoPilot, conveyorSpeed]);
 
-  // Scoreboard with fixed width; "Threats" label is clickable for debug toggle
+  // Scoreboard rendering with clickable "Threats" label for debug toggle
   const renderScoreboard = () => {
     return (
       <div
@@ -433,23 +429,29 @@ const PreciseCollisionGame = () => {
           <span className="text-xs uppercase font-extrabold text-purple-300">
             Safe
           </span>
-          <span className="text-base font-medium text-green-500">{score.safe}</span>
+          <span className="text-base font-medium text-green-500">
+            {score.safe}
+          </span>
         </div>
         <div className="flex justify-between items-center">
           <span
-            className="text-xs uppercase font-extrabold text-purple-300 cursor-pointer"
+            className="text-xs uppercase font-extrabold text-purple-300 cursor-pointer pointer-events-auto"
             onClick={handleThreatsLabelClick}
-            title="Click me 3 times..."
+            title="Click me 3 times to toggle debug"
           >
             Threats
           </span>
-          <span className="text-base font-medium text-red-500">{score.malicious}</span>
+          <span className="text-base font-medium text-red-500">
+            {score.malicious}
+          </span>
         </div>
         <div className="flex justify-between items-center">
           <span className="text-xs uppercase font-extrabold text-purple-300">
             Missed
           </span>
-          <span className="text-base font-medium text-yellow-500">{score.missed}</span>
+          <span className="text-base font-medium text-yellow-500">
+            {score.missed}
+          </span>
         </div>
         <div className="mt-1">
           <span className="text-xs font-extrabold text-purple-300 uppercase">
@@ -465,7 +467,6 @@ const PreciseCollisionGame = () => {
     let packageStyle = '';
     let packageText = '';
     let textColor = '';
-
     switch (pkg.status) {
       case 'safe':
         packageStyle = 'bg-green-200 border-2 border-green-500';
@@ -499,13 +500,11 @@ const PreciseCollisionGame = () => {
         packageText = pkg.hideQuestionMark ? '' : '?';
         textColor = 'text-purple-800';
     }
-
     const animationClass =
       pkg.status === 'unprocessed' || pkg.status === 'missed'
         ? 'animate-twitch'
         : '';
     let extraClassName = '';
-
     if (pkg.status === 'threat' && pkg.inspectionTime) {
       const now = Date.now();
       const elapsed = (now - pkg.inspectionTime) / 1000;
@@ -513,7 +512,6 @@ const PreciseCollisionGame = () => {
         extraClassName += ' falling-threat';
       }
     }
-
     const getPackageStyles = () => {
       const styles = { left: `${pkg.x}px`, width: `${pkg.width}px` };
       if (pkg.status === 'inspecting') {
@@ -530,7 +528,6 @@ const PreciseCollisionGame = () => {
       }
       return { ...styles, top: '290px' };
     };
-
     return (
       <div
         key={pkg.id}
@@ -751,7 +748,6 @@ const PreciseCollisionGame = () => {
         {renderScoreboard()}
 
         <div className="relative w-full h-full">
-          {/* Conveyor belt */}
           <div
             className={`absolute h-5 bg-gradient-to-r from-purple-100 to-purple-200 rounded-full ${
               inspecting && !autoPilot
