@@ -204,7 +204,7 @@ const PreciseCollisionGame = () => {
       {
         id: cmId,
         text: cmText,
-        color: 'text-purple-300', // Changed to pale purple
+        color: 'text-purple-300', // Pale purple
         styleType: 'calm',
         createdAt: Date.now(),
         top: chosenPos.top,
@@ -421,6 +421,31 @@ const PreciseCollisionGame = () => {
     };
   }, [gameActive, inspecting, logoPosition, packages, autoPilot, conveyorSpeed]);
 
+  // Redesigned minimalist scoreboard
+  const renderScoreboard = () => {
+    return (
+      <div className="absolute top-4 left-4 bg-gray-100 bg-opacity-80 p-3 rounded-sm flex flex-col gap-1 text-center">
+        <div className="flex justify-between items-center">
+          <span className="text-xs text-gray-700 uppercase">Safe</span>
+          <span className="text-base font-medium text-green-500">{score.safe}</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-xs text-gray-700 uppercase">Threats</span>
+          <span className="text-base font-medium text-red-500">{score.malicious}</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-xs text-gray-700 uppercase">Missed</span>
+          <span className="text-base font-medium text-yellow-500">{score.missed}</span>
+        </div>
+        <div className="mt-1">
+          <span className={`text-xs font-semibold ${autoPilot ? 'text-purple-500' : 'text-gray-700'}`}>
+            {autoPilot ? 'QUBE MODE ACTIVE' : 'MANUAL MODE'}
+          </span>
+        </div>
+      </div>
+    );
+  };
+
   const renderPackage = (pkg) => {
     let packageStyle = '';
     let packageText = '';
@@ -534,11 +559,7 @@ const PreciseCollisionGame = () => {
         )}
 
         <div className={`z-10 px-2 font-semibold ${textColor} relative`}>
-          <div
-            className={
-              pkg.status === 'missed' && pkg.wasUnprocessed ? 'fade-in' : ''
-            }
-          >
+          <div className={pkg.status === 'missed' && pkg.wasUnprocessed ? 'fade-in' : ''}>
             {packageText}
           </div>
         </div>
@@ -562,30 +583,6 @@ const PreciseCollisionGame = () => {
       );
     }
     return null;
-  };
-
-  const renderScoreboard = () => {
-    return (
-      <div className="absolute top-4 left-4 bg-white p-4 rounded-lg shadow-md flex flex-col gap-2">
-        <div className="text-center">
-          <div className="text-sm text-gray-600">Safe</div>
-          <div className="text-xl font-bold text-green-600">{score.safe}</div>
-        </div>
-        <div className="text-center">
-          <div className="text-sm text-gray-600">Threats</div>
-          <div className="text-xl font-bold text-red-600">{score.malicious}</div>
-        </div>
-        <div className="text-center">
-          <div className="text-sm text-gray-600">Missed Threats</div>
-          <div className="text-xl font-bold text-gray-600">{score.missed}</div>
-        </div>
-        <div className="mt-2 text-center">
-          <div className={`text-xs font-semibold ${autoPilot ? 'text-purple-600' : 'text-gray-400'}`}>
-            {autoPilot ? 'QUBE MODE ACTIVE' : 'MANUAL MODE'}
-          </div>
-        </div>
-      </div>
-    );
   };
 
   const renderCollisionDebug = () => {
@@ -722,7 +719,6 @@ const PreciseCollisionGame = () => {
           }
         }
         .arc-float { animation: floatArcRand 5s ease-out forwards; }
-        /* Updated calm-float for a slow fade out with pale purple color */
         @keyframes calmFloat {
           0% { opacity: 0; transform: translate(-50%, 20px); }
           50% { opacity: 1; transform: translate(-50%, 0px); }
