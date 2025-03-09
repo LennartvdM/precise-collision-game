@@ -18,10 +18,6 @@ const PreciseCollisionGame = () => {
   const animationRef = useRef(null);
   const lastTimeRef = useRef(0);
   const packageSpeedRef = useRef(120);
-  const minPackageIntervalRef = useRef(300);
-  const maxPackageIntervalRef = useRef(1500);
-  const baseSpawnRateRef = useRef(1000);
-  const lastPackageTimeRef = useRef(0);
   const nextPackageTimeRef = useRef(0);
   const burstModeRef = useRef(false);
 
@@ -131,12 +127,16 @@ const PreciseCollisionGame = () => {
     }
   };
 
-  // Helper for random arc offset
+  /**
+   * Generate a random arc offset for the fountain effect.
+   * Adjust angle range or finalY to make arcs more dramatic.
+   */
   function getRandomArcOffset() {
-    // Adjust range if you want a wider or narrower arc
-    const angleDegrees = Math.random() * 40 - 20; // -20 to 20 degrees
+    // Wider range for more dramatic arcs (e.g., -60..60)
+    const angleDegrees = Math.random() * 120 - 60;
     const angleRad = (angleDegrees * Math.PI) / 180;
-    const finalY = 70; // vertical distance of the float
+    // Increase finalY to float them higher
+    const finalY = 140;
     return finalY * Math.tan(angleRad);
   }
 
@@ -156,9 +156,10 @@ const PreciseCollisionGame = () => {
           xOffset: getRandomArcOffset(),
         },
       ]);
+      // Extend to 10s so it doesn't vanish too soon
       setTimeout(() => {
         setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== id));
-      }, 10000); // lasts twice as long: 10s
+      }, 10000);
       return;
     }
 
@@ -177,7 +178,7 @@ const PreciseCollisionGame = () => {
     ]);
     setTimeout(() => {
       setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== threatId));
-    }, 10000); // also 10s
+    }, 10000);
 
     // Calm countermeasure
     const cmId = Date.now() + Math.random();
@@ -219,7 +220,7 @@ const PreciseCollisionGame = () => {
         left: chosenPos.left,
       },
     ]);
-    // Calm notifications can remain 6s or extended as well
+    // Calm notifications can remain shorter or extended
     setTimeout(() => {
       setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== cmId));
     }, 6000);
@@ -596,253 +597,4 @@ const PreciseCollisionGame = () => {
 
   // Debug collision visuals
   const renderCollisionDebug = () => {
-    if (!debugMode) return null;
-    const inspectionPoint = logoHitscanRef.current;
-    return (
-      <>
-        <div
-          className="absolute h-full w-0.5 bg-red-500 opacity-50 z-10"
-          style={{ left: inspectionPoint }}
-        >
-          <div className="absolute top-2 left-2 text-xs bg-white px-2 py-1 rounded shadow-sm">
-            Inspection Line
-          </div>
-        </div>
-        <div
-          className="absolute h-24 bg-blue-200 opacity-20 pointer-events-none"
-          style={{
-            top: '170px',
-            left: inspectionPoint - logoWidthRef.current / 2,
-            width: logoWidthRef.current,
-          }}
-        >
-          <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs bg-white px-2 py-1 rounded shadow-sm whitespace-nowrap">
-            Click Detection Area
-          </div>
-        </div>
-      </>
-    );
-  };
-
-  // Floating notifications: arc outward with random angles
-  const renderFloatingHits = () => {
-    const inspectionPoint = logoHitscanRef.current || 0;
-    const arcTopPos = '120px';
-
-    return floatingHits.map((hit) => {
-      if (hit.styleType === 'arc') {
-        // Arcs outward with random offset
-        return (
-          <div
-            key={hit.id}
-            className={`absolute arc-float text-lg font-bold ${hit.color}`}
-            style={{
-              top: arcTopPos,
-              left: `${inspectionPoint}px`,
-              transform: 'translateX(-50%)',
-              '--float-x': `${hit.xOffset || 0}px`,
-            }}
-          >
-            {hit.text}
-          </div>
-        );
-      } else {
-        // Calm notifications remain at fixed positions
-        return (
-          <div
-            key={hit.id}
-            className={`absolute calm-float text-md font-semibold ${hit.color}`}
-            style={{
-              top: `${hit.top}px`,
-              left: hit.left,
-            }}
-          >
-            {hit.text}
-          </div>
-        );
-      }
-    });
-  };
-
-  return (
-    <div className="flex justify-center items-center w-full bg-gray-50">
-      <style jsx>{`
-        @keyframes bob {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-5px); }
-        }
-        .animate-bob { animation: bob 2s ease-in-out infinite; }
-
-        @keyframes bobIntense {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-15px); }
-        }
-        .animate-bob-intense { animation: bobIntense 1.2s ease-in-out infinite; }
-
-        @keyframes verticalRattle {
-          0%, 15%, 35%, 60%, 85%, 100% { transform: translateY(0); }
-          7% { transform: translateY(-3px); }
-          10% { transform: translateY(4px); }
-          12% { transform: translateY(-2px); }
-          28% { transform: translateY(3px); }
-          32% { transform: translateY(-2px); }
-          53% { transform: translateY(-3px); }
-          57% { transform: translateY(4px); }
-          78% { transform: translateY(3px); }
-          82% { transform: translateY(-2px); }
-        }
-        .animate-twitch {
-          animation: verticalRattle 3.5s ease-in-out infinite;
-          animation-delay: calc(var(--random-delay) * -3.5s);
-        }
-
-        @keyframes wiggleInner {
-          0% { transform: rotate(0deg); }
-          35% { transform: rotate(2.5deg); }
-          65% { transform: rotate(-1.8deg); }
-          85% { transform: rotate(0.8deg); }
-          100% { transform: rotate(0deg); }
-        }
-        .animate-wiggle-inner { animation: wiggleInner 1.1s ease-in-out 1; }
-
-        @keyframes fallAnimation {
-          0% { top: 320px; transform: rotate(0deg); }
-          100% { top: 600px; transform: rotate(45deg); }
-        }
-        .falling-threat { animation: fallAnimation 2s ease-in forwards; }
-
-        @keyframes fadeTransition {
-          0% { opacity: 0; }
-          100% { opacity: 1; }
-        }
-        .fade-in {
-          animation: fadeTransition 0.4s ease-in forwards;
-          animation-play-state: running;
-        }
-
-        @keyframes pulseSubtle {
-          0%, 100% { background-color: #6b21a8; }
-          50% { background-color: #9333ea; }
-        }
-        .animate-pulse-subtle {
-          animation: pulseSubtle 1.2s ease-in-out infinite;
-        }
-
-        /* Fountain-like arcs at random angles */
-        @keyframes floatArcRand {
-          0% {
-            transform: translate(0, 0) scale(1);
-            opacity: 1;
-          }
-          50% {
-            transform: translate(calc(var(--float-x) * 0.5), -35px) scale(1.1);
-          }
-          100% {
-            transform: translate(var(--float-x), -70px) scale(0.9);
-            opacity: 0;
-          }
-        }
-        /* Lasts 10s for SAFE/THREAT as requested (twice as long) */
-        .arc-float {
-          animation: floatArcRand 10s ease-out forwards;
-        }
-
-        @keyframes calmFloat {
-          0% { opacity: 0; transform: translate(-50%, 20px); }
-          50% { opacity: 1; transform: translate(-50%, 0px); }
-          80% { opacity: 1; transform: translate(-50%, 0px); }
-          100% { opacity: 0; transform: translate(-50%, 0px); }
-        }
-        .calm-float {
-          animation: calmFloat 6s ease forwards;
-        }
-      `}</style>
-
-      <div
-        className="relative w-full max-w-4xl mx-auto bg-gray-50 overflow-hidden"
-        style={{ height: '500px' }}
-        ref={gameAreaRef}
-      >
-        {/* Top-right buttons */}
-        <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
-          <button
-            onClick={toggleDebugMode}
-            className={`px-4 py-2 rounded-lg shadow-md font-medium ${
-              debugMode
-                ? 'bg-purple-600 text-white'
-                : 'bg-white text-purple-700 border border-purple-200'
-            }`}
-          >
-            {debugMode ? 'Debug Mode: ON' : 'Debug Mode: OFF'}
-          </button>
-          <button
-            onClick={toggleAutoPilot}
-            className={`px-4 py-2 rounded-lg shadow-md font-medium text-white ${
-              autoPilot
-                ? 'bg-purple-800 animate-pulse-subtle'
-                : 'bg-purple-600'
-            }`}
-          >
-            QUBE MODE
-          </button>
-        </div>
-
-        {/* Debug: conveyor speed */}
-        {debugMode && (
-          <div className="absolute bottom-4 right-4 bg-white px-2 py-1 rounded text-xs">
-            Speed: {Math.round(conveyorSpeed)}
-          </div>
-        )}
-
-        {renderScoreboard()}
-
-        <div className="relative w-full h-full">
-          {/* Conveyor belt */}
-          <div
-            className={`absolute h-5 bg-gradient-to-r from-purple-100 to-purple-200 rounded-full ${
-              inspecting && !autoPilot
-                ? 'opacity-50 border-2 border-red-300'
-                : 'opacity-100'
-            }`}
-            style={{
-              top: '300px',
-              transition:
-                'opacity 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), border 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
-              left: '50px',
-              right: '50px',
-            }}
-          ></div>
-
-          {/* Inspection line debug */}
-          {debugMode && logoHitscanRef.current && (
-            <div
-              className="absolute h-full w-0.5 bg-purple-500 opacity-30 z-0"
-              style={{ left: logoHitscanRef.current }}
-            ></div>
-          )}
-
-          {renderCollisionDebug()}
-
-          {/* Company Logo (clickable) */}
-          <Logo
-            logoPosition={logoPosition}
-            isHovered={isHovered}
-            wiggleActive={wiggleActive}
-            autoPilot={autoPilot}
-            handleClick={handleLogoClick}
-            handleMouseEnter={() => handleLogoHover(true)}
-            handleMouseLeave={() => handleLogoHover(false)}
-            handleAnimationEnd={handleWiggleEnd}
-            logoWidth={logoWidthRef.current}
-          />
-
-          {renderInspectionBeam()}
-          {packages.map(renderPackage)}
-          {renderFloatingHits()}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default PreciseCollisionGame;
+   
