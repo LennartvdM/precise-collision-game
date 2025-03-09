@@ -339,31 +339,25 @@ const PreciseCollisionGame = () => {
         });
       }
 
-      // AutoPilot: automatically inspect packages if they're close to the line
+      // AutoPilot: if we see a package near the line, set the logo down
       if (autoPilot && !inspecting && gameActive && logoPosition === 'up') {
         const inspLine = logoHitscanRef.current;
         const unprocessed = packages.filter((p) => p.status === 'unprocessed');
         const toScan = unprocessed.filter((p) => {
           if (!p || !p.centerPoint) return false;
-          // Increase threshold from 1 to e.g. 20 so we catch them in time
+          // Increase threshold so we catch them in time
           const dist = Math.abs(p.centerPoint.x - inspLine);
           return dist <= 20;
         });
         if (toScan.length > 0) {
-          // Sort by distance so we inspect the closest package first
-          toScan.sort((a, b) => {
-            const aC = a.centerPoint.x;
-            const bC = b.centerPoint.x;
-            return Math.abs(inspLine - aC) - Math.abs(inspLine - bC);
-          });
-          // Perform the “duck” to inspect
+          // We only set the logo down here, scanning will happen below
           setLogoPosition('down');
-          setTimeout(() => setLogoPosition('up'), 150);
         }
       }
 
-      // Manual inspection (only if autopilot is off)
-      if (logoPosition === 'down' && !inspecting && !autoPilot) {
+      // **Unified scanning logic** (manual + autopilot):
+      // If the logo is down, we check for unprocessed packages at the line
+      if (logoPosition === 'down' && !inspecting) {
         const inspLine = logoHitscanRef.current;
         const toInspect = packages.filter((p) => {
           if (p.status !== 'unprocessed') return false;
@@ -375,6 +369,7 @@ const PreciseCollisionGame = () => {
           const target = toInspect[0];
           setInspecting(true);
           setCurrentInspection({ ...target });
+          // Mark the package as "inspecting"
           setPackages((prev) =>
             prev.map((pkg) =>
               pkg.id === target.id
@@ -387,6 +382,7 @@ const PreciseCollisionGame = () => {
                 : pkg
             )
           );
+          // After 350ms, reveal the package result and move the logo up
           setTimeout(() => {
             setPackages((prevPack) => {
               const currentPackage = prevPack.find((p) => p.id === target.id);
@@ -420,6 +416,8 @@ const PreciseCollisionGame = () => {
             });
             setInspecting(false);
             setCurrentInspection(null);
+            // Return the logo to up after scanning
+            setLogoPosition('up');
           }, 350);
         }
       }
