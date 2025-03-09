@@ -702,9 +702,9 @@ const PreciseCollisionGame = () => {
             transform: translate(-50%, 0) scale(1);
             opacity: 1;
           }
-          5% {
+          2% {
             /* Rapid initial pop with high speed */
-            transform: translate(calc(-50% + var(--float-x) * 1.1), -30px) scale(1.4);
+            transform: translate(calc(-50% + var(--float-x) * 1.5), -40px) scale(1.5);
             opacity: 1;
           }
           15% {
