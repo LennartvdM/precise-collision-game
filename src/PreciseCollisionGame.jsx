@@ -63,7 +63,7 @@ const PreciseCollisionGame = () => {
     });
   };
 
-  // Handle triple-click on "Threats" label
+  // Handle triple-click on "Threats" label to toggle debug visibility
   const handleThreatsLabelClick = () => {
     console.log("Threats label clicked");
     threatsClickRef.current++;
@@ -140,7 +140,9 @@ const PreciseCollisionGame = () => {
     return () => window.removeEventListener('resize', updateLogoHitscan);
   }, []);
 
-  // Schedule precise duck (for autopilot)
+  /**
+   * Schedules a precise duck for autopilot.
+   */
   function schedulePreciseDuck(target) {
     const inspLine = logoHitscanRef.current;
     if (!inspLine || !target || !target.centerPoint) return;
@@ -233,7 +235,9 @@ const PreciseCollisionGame = () => {
     }, 6000);
   };
 
-  // Fountain-like arc offset for floating notifications
+  /**
+   * Generates a fountain-like arc offset.
+   */
   function getRandomArcOffset() {
     const angleDegrees = Math.random() * 120 - 60;
     const angleRad = (angleDegrees * Math.PI) / 180;
@@ -335,7 +339,7 @@ const PreciseCollisionGame = () => {
         );
       }
 
-      // Autopilot: schedule a precise duck if a package is coming near the line
+      // Autopilot: schedule precise duck if a package is nearing the line
       if (autoPilot && !inspecting && gameActive && logoPosition === 'up') {
         const inspLine = logoHitscanRef.current;
         const unprocessed = packages.filter((p) => p.status === 'unprocessed');
@@ -355,7 +359,7 @@ const PreciseCollisionGame = () => {
         }
       }
 
-      // Shared scanning logic (manual + autopilot)
+      // Unified scanning logic (manual + autopilot)
       if (logoPosition === 'down' && !inspecting) {
         const inspLine = logoHitscanRef.current;
         const toInspect = packages.filter((p) => {
@@ -606,7 +610,7 @@ const PreciseCollisionGame = () => {
     );
   };
 
-  // Floating notifications: arcs outward with random angles
+  // Floating notifications: fountain-like arcs with deceleration
   const renderFloatingHits = () => {
     const inspectionPoint = logoHitscanRef.current || 0;
     const arcTopPos = '120px';
@@ -692,14 +696,21 @@ const PreciseCollisionGame = () => {
         .animate-pulse-subtle {
           animation: pulseSubtle 1.2s ease-in-out infinite;
         }
-        /* Fountain arcs */
+        /* Updated fountain-like arc animation */
         @keyframes floatArcRand {
           0% {
             transform: translate(-50%, 0) scale(1);
             opacity: 1;
           }
-          50% {
-            transform: translate(calc(-50% + var(--float-x) * 0.5), -70px) scale(1.1);
+          5% {
+            /* Rapid initial pop with high speed */
+            transform: translate(calc(-50% + var(--float-x) * 1.1), -30px) scale(1.4);
+            opacity: 1;
+          }
+          15% {
+            /* Decelerate quickly */
+            transform: translate(calc(-50% + var(--float-x) * 0.9), -50px) scale(1.1);
+            opacity: 1;
           }
           100% {
             transform: translate(calc(-50% + var(--float-x)), -140px) scale(0.9);
@@ -748,6 +759,7 @@ const PreciseCollisionGame = () => {
         {renderScoreboard()}
 
         <div className="relative w-full h-full">
+          {/* Conveyor belt */}
           <div
             className={`absolute h-5 bg-gradient-to-r from-purple-100 to-purple-200 rounded-full ${
               inspecting && !autoPilot
