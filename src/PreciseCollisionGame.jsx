@@ -24,7 +24,6 @@ const PreciseCollisionGame = () => {
   const lastPackageTimeRef = useRef(0);
   const nextPackageTimeRef = useRef(0);
   const burstModeRef = useRef(false);
-  const gravityRef = useRef(980); // pixels per second squared
 
   // Collision detection
   const logoWidthRef = useRef(80);
@@ -38,7 +37,7 @@ const PreciseCollisionGame = () => {
   // Floating notifications
   const [floatingHits, setFloatingHits] = useState([]);
 
-  // Define fixed positions for "calm" (countermeasure) notifications
+  // For "calm" (countermeasure) notifications
   const calmPositions = [
     { top: 40, left: 'calc(50% - 120px)' },
     { top: 60, left: 'calc(50% + 100px)' },
@@ -53,8 +52,8 @@ const PreciseCollisionGame = () => {
   const toggleDebugMode = () => setDebugMode((d) => !d);
   const toggleAutoPilot = () => {
     setAutoPilot((a) => {
-      // Reset missed threats when enabling autoPilot
       if (!a) {
+        // Reset missed if we switch to autopilot
         setScore((prev) => ({ ...prev, missed: 0 }));
       }
       return !a;
@@ -69,7 +68,7 @@ const PreciseCollisionGame = () => {
     }
   };
 
-  // Speed transition effect
+  // Smooth speed transitions
   useEffect(() => {
     let animationId;
     let startTime;
@@ -132,6 +131,15 @@ const PreciseCollisionGame = () => {
     }
   };
 
+  // Helper for random arc offset
+  function getRandomArcOffset() {
+    // Adjust range if you want a wider or narrower arc
+    const angleDegrees = Math.random() * 40 - 20; // -20 to 20 degrees
+    const angleRad = (angleDegrees * Math.PI) / 180;
+    const finalY = 70; // vertical distance of the float
+    return finalY * Math.tan(angleRad);
+  }
+
   // Spawn floating notifications (safe or malicious)
   const spawnHitIndicator = (isMalicious) => {
     if (!isMalicious) {
@@ -143,18 +151,18 @@ const PreciseCollisionGame = () => {
           id,
           text: 'SAFE',
           color: 'text-green-500',
-          styleType: 'arc', // we'll float them straight up now
+          styleType: 'arc',
           createdAt: Date.now(),
-          // Removed xOffset to ensure center alignment
+          xOffset: getRandomArcOffset(),
         },
       ]);
       setTimeout(() => {
         setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== id));
-      }, 5000);
+      }, 10000); // lasts twice as long: 10s
       return;
     }
 
-    // Malicious notifications: 1) THREAT, 2) Calm (countermeasure)
+    // Malicious notifications: "THREAT" + calm
     const threatId = Date.now() + Math.random();
     setFloatingHits((curr) => [
       ...curr,
@@ -164,12 +172,12 @@ const PreciseCollisionGame = () => {
         color: 'text-red-500',
         styleType: 'arc',
         createdAt: Date.now(),
-        // Removed xOffset
+        xOffset: getRandomArcOffset(),
       },
     ]);
     setTimeout(() => {
       setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== threatId));
-    }, 5000);
+    }, 10000); // also 10s
 
     // Calm countermeasure
     const cmId = Date.now() + Math.random();
@@ -211,6 +219,7 @@ const PreciseCollisionGame = () => {
         left: chosenPos.left,
       },
     ]);
+    // Calm notifications can remain 6s or extended as well
     setTimeout(() => {
       setFloatingHits((oldHits) => oldHits.filter((h) => h.id !== cmId));
     }, 6000);
@@ -615,15 +624,14 @@ const PreciseCollisionGame = () => {
     );
   };
 
-  // Floating notifications: center them exactly on the line, no sideways drift
+  // Floating notifications: arc outward with random angles
   const renderFloatingHits = () => {
     const inspectionPoint = logoHitscanRef.current || 0;
-    // We’ll float them up from around 120px top
     const arcTopPos = '120px';
 
     return floatingHits.map((hit) => {
       if (hit.styleType === 'arc') {
-        // Straight-up float from the inspection line
+        // Arcs outward with random offset
         return (
           <div
             key={hit.id}
@@ -632,6 +640,7 @@ const PreciseCollisionGame = () => {
               top: arcTopPos,
               left: `${inspectionPoint}px`,
               transform: 'translateX(-50%)',
+              '--float-x': `${hit.xOffset || 0}px`,
             }}
           >
             {hit.text}
@@ -719,22 +728,23 @@ const PreciseCollisionGame = () => {
           animation: pulseSubtle 1.2s ease-in-out infinite;
         }
 
-        /* Updated float: straight up from the line */
-        @keyframes floatStraightUp {
+        /* Fountain-like arcs at random angles */
+        @keyframes floatArcRand {
           0% {
-            transform: translate(-50%, 0) scale(1);
+            transform: translate(0, 0) scale(1);
             opacity: 1;
           }
           50% {
-            transform: translate(-50%, -35px) scale(1.1);
+            transform: translate(calc(var(--float-x) * 0.5), -35px) scale(1.1);
           }
           100% {
-            transform: translate(-50%, -70px) scale(0.9);
+            transform: translate(var(--float-x), -70px) scale(0.9);
             opacity: 0;
           }
         }
+        /* Lasts 10s for SAFE/THREAT as requested (twice as long) */
         .arc-float {
-          animation: floatStraightUp 5s ease-out forwards;
+          animation: floatArcRand 10s ease-out forwards;
         }
 
         @keyframes calmFloat {
