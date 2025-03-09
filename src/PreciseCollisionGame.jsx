@@ -424,25 +424,24 @@ const PreciseCollisionGame = () => {
   // Redesigned minimalist scoreboard with purple labels and extra bold text
   const renderScoreboard = () => {
     return (
-      <div className="absolute top-4 left-4 bg-gray-100 bg-opacity-80 p-3 rounded-sm flex flex-col gap-1 text-center">
-        <div className="flex justify-between items-center">
-          <span className="text-xs text-purple-700 uppercase font-extrabold">Safe</span>
-          <span className="text-base font-medium text-green-500">{score.safe}</span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-xs text-purple-700 uppercase font-extrabold">Threats</span>
-          <span className="text-base font-medium text-red-500">{score.malicious}</span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-xs text-purple-700 uppercase font-extrabold">Missed</span>
-          <span className="text-base font-medium text-yellow-500">{score.missed}</span>
-        </div>
-        <div className="mt-1">
-          <span className={`text-xs font-extrabold ${autoPilot ? 'text-purple-500' : 'text-purple-700'}`}>
-            {autoPilot ? 'QUBE MODE ACTIVE' : 'MANUAL MODE'}
-          </span>
-        </div>
-      </div>
+     <div className="flex justify-between items-center">
+  <span className="text-xs text-purple-700 uppercase font-extrabold opacity-60">Safe</span>
+  <span className="text-base font-medium text-green-500 opacity-60">{score.safe}</span>
+</div>
+<div className="flex justify-between items-center">
+  <span className="text-xs text-purple-700 uppercase font-extrabold opacity-60">Threats</span>
+  <span className="text-base font-medium text-red-500 opacity-60">{score.malicious}</span>
+</div>
+<div className="flex justify-between items-center">
+  <span className="text-xs text-purple-700 uppercase font-extrabold opacity-60">Missed</span>
+  <span className="text-base font-medium text-yellow-500 opacity-60">{score.missed}</span>
+</div>
+<div className="mt-1">
+  <span className={`text-xs font-extrabold opacity-60 ${autoPilot ? 'text-purple-500' : 'text-purple-700'}`}>
+    {autoPilot ? 'QUBE MODE ACTIVE' : 'MANUAL MODE'}
+  </span>
+</div>
+
     );
   };
 
