@@ -41,15 +41,15 @@ const PreciseCollisionGame = () => {
 
 const calmPositions = [
   // Left column (unchanged, 80px wide)
-  { top: 170, left: 'calc(50% - 120px)' },
-  { top: 200, left: 'calc(50% - 120px)' },
-  { top: 230, left: 'calc(50% - 120px)' },
+  { top: 170, left: 'calc(50% - 140px)' },
+  { top: 200, left: 'calc(50% - 140px)' },
+  { top: 230, left: 'calc(50% - 140px)' },
 
   // Right column (shifted an extra 40px to the right)
   // Now spans from (50% + 80px) to (50% + 160px)
-  { top: 170, left: 'calc(50% + 80px)' },
-  { top: 200, left: 'calc(50% + 80px)' },
-  { top: 230, left: 'calc(50% + 80px)' },
+  { top: 170, left: 'calc(50% + 140px)' },
+  { top: 200, left: 'calc(50% + 140px)' },
+  { top: 230, left: 'calc(50% + 140px)' },
 ];
 
 
