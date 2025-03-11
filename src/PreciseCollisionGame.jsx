@@ -758,7 +758,6 @@ const calmPositions = [
 
         /* High-speed pop with deceleration for the SAFE/THREAT arcs */
 @keyframes floatArcRand {
-  /* We keep the movement keyframes the same, but tweak opacity near the end */
   0% {
     transform: translate(-50%, 0) scale(1);
     opacity: 1;
@@ -771,12 +770,6 @@ const calmPositions = [
     transform: translate(calc(-50% + var(--float-x) * 0.9), -50px) scale(1.1);
     opacity: 1;
   }
-  /* Stay fully opaque up to 90% of the animation */
-  90% {
-    transform: translate(calc(-50% + var(--float-x)), -120px) scale(1);
-    opacity: 1;
-  }
-  /* Quickly fade out during the last 10% */
   100% {
     transform: translate(calc(-50% + var(--float-x)), -140px) scale(0.9);
     opacity: 0;
@@ -784,11 +777,9 @@ const calmPositions = [
 }
 
 .arc-float {
-  /* Keep the same 10s duration and let it end (forwards) */
-  animation: floatArcRand 10s forwards;
-  /* Apply a more aggressive “ease-in” curve (adjust as needed) */
-  animation-timing-function: cubic-bezier(0.9, 0, 1, 0.2);
+  animation: floatArcRand 10s ease-out forwards;
 }
+
 
 
         @keyframes calmFloat {
