@@ -40,16 +40,18 @@ const PreciseCollisionGame = () => {
 // just like your click area, but shifted left/right by 80px.
 
 const calmPositions = [
-  // Left column (80px to the left of click area)
+  // Left column (unchanged, 80px wide)
   { top: 170, left: 'calc(50% - 120px)' },
   { top: 200, left: 'calc(50% - 120px)' },
   { top: 230, left: 'calc(50% - 120px)' },
 
-  // Right column (80px to the right of click area)
-  { top: 170, left: 'calc(50% + 40px)' },
-  { top: 200, left: 'calc(50% + 40px)' },
-  { top: 230, left: 'calc(50% + 40px)' },
+  // Right column (shifted an extra 40px to the right)
+  // Now spans from (50% + 80px) to (50% + 160px)
+  { top: 170, left: 'calc(50% + 80px)' },
+  { top: 200, left: 'calc(50% + 80px)' },
+  { top: 230, left: 'calc(50% + 80px)' },
 ];
+
 
 
 
