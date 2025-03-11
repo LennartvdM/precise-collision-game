@@ -38,13 +38,14 @@ const PreciseCollisionGame = () => {
 
   // Original calm notification positions
   const calmPositions = [
-    { top: 40, left: 'calc(50% - 120px)' },
-    { top: 60, left: 'calc(50% + 100px)' },
-    { top: 80, left: 'calc(50% - 80px)' },
-    { top: 100, left: 'calc(50% + 120px)' },
-    { top: 120, left: 'calc(50% - 60px)' },
-    { top: 140, left: 'calc(50% + 80px)' },
-  ];
+  { top: 310, left: 'calc(50% - 120px)' },
+  { top: 330, left: 'calc(50% + 100px)' },
+  { top: 350, left: 'calc(50% - 80px)' },
+  { top: 370, left: 'calc(50% + 120px)' },
+  { top: 390, left: 'calc(50% - 60px)' },
+  { top: 410, left: 'calc(50% + 80px)' },
+];
+
   const calmIndexRef = useRef(0);
 
   // Track clicks on "Threats" label for a hidden debug button
