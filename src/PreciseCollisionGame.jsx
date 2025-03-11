@@ -757,28 +757,39 @@ const calmPositions = [
         }
 
         /* High-speed pop with deceleration for the SAFE/THREAT arcs */
-@keyframes floatArcRand {
+@keyframes floatArcTransform {
   0% {
     transform: translate(-50%, 0) scale(1);
-    opacity: 1;
   }
   5% {
     transform: translate(calc(-50% + var(--float-x) * 1.1), -30px) scale(1.4);
-    opacity: 1;
   }
   15% {
     transform: translate(calc(-50% + var(--float-x) * 0.9), -50px) scale(1.1);
-    opacity: 1;
   }
   100% {
     transform: translate(calc(-50% + var(--float-x)), -140px) scale(0.9);
+  }
+}
+
+@keyframes floatArcOpacity {
+  0%, 60% {
+    opacity: 1;
+  }
+  100% {
     opacity: 0;
   }
 }
 
 .arc-float {
-  animation: floatArcRand 10s ease-out forwards;
+  /* Combine the movement and opacity animations:
+     - The transform uses ease-out as before.
+     - The opacity uses an ease-in (cubic-bezier) so it stays opaque until near the end and then fades quickly. */
+  animation: 
+    floatArcTransform 10s ease-out forwards,
+    floatArcOpacity 10s cubic-bezier(0.42, 0, 1, 1) forwards;
 }
+
 
 
 
