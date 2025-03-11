@@ -776,6 +776,9 @@ const calmPositions = [
   0%, 15% {
     opacity: 1;
   }
+  50% {
+    opacity: 0.1;
+  }
   100% {
     opacity: 0;
   }
