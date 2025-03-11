@@ -438,48 +438,49 @@ const PreciseCollisionGame = () => {
   }, [gameActive, inspecting, logoPosition, packages, autoPilot, conveyorSpeed]);
 
   // Render scoreboard with triple-click area on "Threats"
-  const renderScoreboard = () => {
-    return (
-      <div
-        className="absolute top-4 left-4 bg-gray-100 bg-opacity-80 p-3 rounded-sm flex flex-col gap-1 text-center"
-        style={{ width: '180px' }}
-      >
-        <div className="flex justify-between items-center">
-          <span className="text-xs uppercase font-extrabold text-purple-300">
-            Safe
-          </span>
-          <span className="text-base font-medium text-green-500">
-            {score.safe}
-          </span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span
-            className="text-xs uppercase font-extrabold text-purple-300 cursor-pointer pointer-events-auto"
-            onClick={handleThreatsLabelClick}
-            title="Click me 3 times to toggle debug"
-          >
-            Threats
-          </span>
-          <span className="text-base font-medium text-red-500">
-            {score.malicious}
-          </span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-xs uppercase font-extrabold text-purple-300">
-            Missed
-          </span>
-          <span className="text-base font-medium text-yellow-500">
-            {score.missed}
-          </span>
-        </div>
-        <div className="mt-1">
-          <span className="text-xs font-extrabold text-purple-300 uppercase">
-            {autoPilot ? 'QUBE MODE ACTIVE' : 'MANUAL MODE'}
-          </span>
-        </div>
+ const renderScoreboard = () => {
+  return (
+    <div
+      className="absolute top-4 left-4 bg-gray-100 bg-opacity-80 p-3 rounded-sm flex flex-col gap-1 text-center"
+      style={{ width: '180px', zIndex: 50 }}
+    >
+      <div className="flex justify-between items-center">
+        <span className="text-xs uppercase font-extrabold text-purple-300">
+          Safe
+        </span>
+        <span className="text-base font-medium text-green-500">
+          {score.safe}
+        </span>
       </div>
-    );
-  };
+      <div className="flex justify-between items-center">
+        <span
+          className="text-xs uppercase font-extrabold text-purple-300 cursor-pointer pointer-events-auto"
+          onClick={handleThreatsLabelClick}
+          title="Click me 3 times to toggle debug"
+        >
+          Threats
+        </span>
+        <span className="text-base font-medium text-red-500">
+          {score.malicious}
+        </span>
+      </div>
+      <div className="flex justify-between items-center">
+        <span className="text-xs uppercase font-extrabold text-purple-300">
+          Missed
+        </span>
+        <span className="text-base font-medium text-yellow-500">
+          {score.missed}
+        </span>
+      </div>
+      <div className="mt-1">
+        <span className="text-xs font-extrabold text-purple-300 uppercase">
+          {autoPilot ? 'QUBE MODE ACTIVE' : 'MANUAL MODE'}
+        </span>
+      </div>
+    </div>
+  );
+};
+
 
   // Render each package
   const renderPackage = (pkg) => {
