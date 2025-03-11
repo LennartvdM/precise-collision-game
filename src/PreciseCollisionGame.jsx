@@ -773,10 +773,10 @@ const calmPositions = [
 }
 
 @keyframes floatArcOpacity {
-  0%, 15% {
+  0%, 5% {
     opacity: 1;
   }
-  50% {
+  15% {
     opacity: 0.1;
   }
   100% {
