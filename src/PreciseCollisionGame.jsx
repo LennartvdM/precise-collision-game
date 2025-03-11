@@ -37,14 +37,18 @@ const PreciseCollisionGame = () => {
   const [floatingHits, setFloatingHits] = useState([]);
 
   // Original calm notification positions
- const calmPositions = [
-  { top: 340, left: 'calc(50% - 180px)' },
-  { top: 340, left: 'calc(50% + 150px)' },
-  { top: 360, left: 'calc(50% - 200px)' },
-  { top: 360, left: 'calc(50% + 170px)' },
-  { top: 380, left: 'calc(50% - 180px)' },
-  { top: 380, left: 'calc(50% + 150px)' },
+const calmPositions = [
+  // Left column (below ~300px, shifted far left)
+  { top: 320, left: 'calc(50% - 220px)' },
+  { top: 345, left: 'calc(50% - 220px)' },
+  { top: 370, left: 'calc(50% - 220px)' },
+
+  // Right column (below ~300px, shifted far right)
+  { top: 320, left: 'calc(50% + 140px)' },
+  { top: 345, left: 'calc(50% + 140px)' },
+  { top: 370, left: 'calc(50% + 140px)' },
 ];
+
 
   const calmIndexRef = useRef(0);
 
