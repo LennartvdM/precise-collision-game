@@ -255,12 +255,16 @@ const calmPositions = [
   };
 
   // Fountain-like offset
-  function getRandomArcOffset() {
-    const angleDegrees = Math.random() * 120 - 60; // range -60..60
-    const angleRad = (angleDegrees * Math.PI) / 180;
-    const finalY = 140;
-    return finalY * Math.tan(angleRad);
-  }
+function getRandomArcOffset() {
+  const angleDegrees = Math.random() * 120 - 60; // range from -60 to 60 degrees
+  const angleRad = (angleDegrees * Math.PI) / 180;
+  const finalY = 140;
+  let offset = finalY * Math.tan(angleRad);
+  // Clamp the horizontal offset between -50px and 50px
+  offset = Math.max(Math.min(offset, 50), -50);
+  return offset;
+}
+
 
   // Main game loop
   useEffect(() => {
