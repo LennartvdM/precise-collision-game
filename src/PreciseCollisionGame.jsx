@@ -773,7 +773,7 @@ const calmPositions = [
 }
 
 @keyframes floatArcOpacity {
-  0%, 60% {
+  0%, 90% {
     opacity: 1;
   }
   100% {
@@ -782,13 +782,13 @@ const calmPositions = [
 }
 
 .arc-float {
-  /* Combine the movement and opacity animations:
-     - The transform uses ease-out as before.
-     - The opacity uses an ease-in (cubic-bezier) so it stays opaque until near the end and then fades quickly. */
-  animation: 
-    floatArcTransform 10s ease-out forwards,
-    floatArcOpacity 10s cubic-bezier(0.42, 0, 1, 1) forwards;
+  /* Define separate animations for transform and opacity */
+  animation-name: floatArcTransform, floatArcOpacity;
+  animation-duration: 10s, 10s;
+  animation-timing-function: ease-out, cubic-bezier(0.42, 0, 1, 1);
+  animation-fill-mode: forwards, forwards;
 }
+
 
 
 
