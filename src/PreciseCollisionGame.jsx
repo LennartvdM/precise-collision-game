@@ -778,7 +778,7 @@ function getRandomArcOffset() {
 
 @keyframes floatArcOpacity {
   0%, 5% {
-    opacity: 1;
+    opacity: 0.8;
   }
   35% {
     opacity: 0;
