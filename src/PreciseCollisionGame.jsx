@@ -15,22 +15,36 @@ const DEFAULT_LAYOUT = {
   gestureForceDirection: 1,
   collisionAreaTop: 170,
   collisionAreaHeight: 96,
+  maxGestureOffset: 130,
+  catapultScaleMultiplier: 0.45,
 };
 
 const TOUCH_LAYOUT = {
-  containerHeight: 560,
-  beltTop: 190,
-  packageTrackTop: 180,
-  packageInspectingTop: 210,
-  threatDropTop: 210,
-  inspectionBeamTop: 180,
-  arcTop: 140,
-  logoBaseTopUp: 380,
-  logoBaseTopDown: 440,
+  containerHeight: 640,
+  beltTop: 300,
+  packageTrackTop: 290,
+  packageInspectingTop: 320,
+  threatDropTop: 320,
+  inspectionBeamTop: 285,
+  arcTop: 150,
+  logoBaseTopUp: 450,
+  logoBaseTopDown: 520,
   catapultPullDirection: 1,
   gestureForceDirection: -1,
-  collisionAreaTop: 160,
-  collisionAreaHeight: 110,
+  collisionAreaTop: 240,
+  collisionAreaHeight: 120,
+  maxGestureOffset: 240,
+  catapultScaleMultiplier: 1,
+};
+
+const TOUCH_PHYSICS_CONFIG = {
+  gravity: -1600,
+  damping: 0.94,
+  maxLift: 240,
+  minLaunchVelocity: 420,
+  tapLaunchVelocity: 520,
+  maxLaunchVelocity: 820,
+  maxFlickVelocity: 1200,
 };
 
 const PreciseCollisionGame = () => {
@@ -71,6 +85,13 @@ const PreciseCollisionGame = () => {
   });
   const returnTimeoutRef = useRef(null);
   const inspectingRef = useRef(false);
+  const touchMotionRef = useRef({
+    active: false,
+    displacement: 0,
+    velocity: 0,
+  });
+  const touchPhysicsFrameRef = useRef(null);
+  const touchPhysicsLastTimeRef = useRef(null);
 
   // Hover & wiggle states
   const [isHovered, setIsHovered] = useState(false);
@@ -81,6 +102,7 @@ const PreciseCollisionGame = () => {
   const [catapultPull, setCatapultPull] = useState(0);
   const [gestureForce, setGestureForce] = useState(0);
   const [isTouchLayout, setIsTouchLayout] = useState(false);
+  const [isTouchPressing, setIsTouchPressing] = useState(false);
 
  // Each entry has the same width (80px) and starts at top=170, 
 // just like your click area, but shifted left/right by 80px.
@@ -146,6 +168,7 @@ const calmPositions = [
       : Date.now();
 
   const scheduleLogoReset = (duration = 220) => {
+    if (isTouchLayout) return;
     if (returnTimeoutRef.current) clearTimeout(returnTimeoutRef.current);
     returnTimeoutRef.current = setTimeout(() => {
       if (inspectingRef.current) {
@@ -157,7 +180,31 @@ const calmPositions = [
     }, duration);
   };
 
+  const easeOutStrength = (value) => 1 - Math.pow(1 - value, 2.2);
+
+  const startTouchPhysicsLaunch = (initialVelocity) => {
+    if (!gameActive) return;
+    if (autoPilot) setAutoPilot(false);
+    const clampedVelocity = Math.min(
+      Math.max(initialVelocity, TOUCH_PHYSICS_CONFIG.minLaunchVelocity),
+      TOUCH_PHYSICS_CONFIG.maxLaunchVelocity
+    );
+    touchMotionRef.current = {
+      active: true,
+      displacement: 1,
+      velocity: clampedVelocity,
+    };
+    setGestureForce(1);
+    setLogoPosition('down');
+  };
+
   const launchLogoWithForce = ({ impactBoost = 0, hold = 220 } = {}) => {
+    if (isTouchLayout) {
+      startTouchPhysicsLaunch(
+        TOUCH_PHYSICS_CONFIG.tapLaunchVelocity + impactBoost * 2
+      );
+      return;
+    }
     if (!gameActive) return;
     if (autoPilot) setAutoPilot(false);
     setLogoPosition('down');
@@ -165,7 +212,33 @@ const calmPositions = [
     scheduleLogoReset(Math.max(180, hold));
   };
 
+  const getCatapultLaunchVelocity = (pullStrength) => {
+    const normalizedPull = Math.min(pullStrength / MAX_PULL_PX, 1);
+    const eased = easeOutStrength(normalizedPull);
+    return (
+      TOUCH_PHYSICS_CONFIG.minLaunchVelocity +
+      eased * (TOUCH_PHYSICS_CONFIG.maxLaunchVelocity - TOUCH_PHYSICS_CONFIG.minLaunchVelocity)
+    );
+  };
+
+  const getFlickLaunchVelocity = (velocity = 0.4) => {
+    const pxPerSec = Math.min(
+      Math.abs(velocity) * 1000,
+      TOUCH_PHYSICS_CONFIG.maxFlickVelocity
+    );
+    const normalized = pxPerSec / TOUCH_PHYSICS_CONFIG.maxFlickVelocity;
+    const eased = Math.pow(normalized, 0.65);
+    return (
+      TOUCH_PHYSICS_CONFIG.minLaunchVelocity +
+      eased * (TOUCH_PHYSICS_CONFIG.maxLaunchVelocity - TOUCH_PHYSICS_CONFIG.minLaunchVelocity)
+    );
+  };
+
   const triggerFlickLaunch = (velocity = 0.4) => {
+    if (isTouchLayout) {
+      startTouchPhysicsLaunch(getFlickLaunchVelocity(velocity));
+      return;
+    }
     const clampedVelocity = Math.min(Math.max(velocity, 0.3), 2.2);
     const normalized = Math.pow(clampedVelocity / 2.2, 0.6);
     const impactBoost = 45 + normalized * 140;
@@ -174,6 +247,10 @@ const calmPositions = [
   };
 
   const triggerCatapultLaunch = (pullStrength) => {
+    if (isTouchLayout) {
+      startTouchPhysicsLaunch(getCatapultLaunchVelocity(pullStrength));
+      return;
+    }
     const normalizedPull = Math.min(pullStrength / MAX_PULL_PX, 1);
     const eased = Math.pow(normalizedPull, 0.65);
     const impactBoost = 55 + eased * 140;
@@ -191,6 +268,7 @@ const calmPositions = [
       maxDownPull: 0,
       fastestUpwardVelocity: 0,
     };
+    setIsTouchPressing(false);
   };
 
   // Logo click logic
@@ -199,9 +277,19 @@ const calmPositions = [
   };
 
   const handleLogoTouchStart = (event) => {
-    if (event.touches.length !== 1) return;
+    if (!isTouchLayout || event.touches.length !== 1) return;
+    if (inspectingRef.current) return;
     const touch = event.touches[0];
     const now = getNow();
+
+    touchMotionRef.current = {
+      active: false,
+      displacement: 0,
+      velocity: 0,
+    };
+    setGestureForce(0);
+    setLogoPosition('up');
+    setIsTouchPressing(true);
 
     touchStateRef.current = {
       active: true,
@@ -215,6 +303,7 @@ const calmPositions = [
   };
 
   const handleLogoTouchMove = (event) => {
+    if (!isTouchLayout) return;
     const currentTouch = touchStateRef.current;
     if (!currentTouch.active || event.touches.length !== 1) return;
 
@@ -250,6 +339,7 @@ const calmPositions = [
   };
 
   const handleLogoTouchEnd = () => {
+    if (!isTouchLayout) return;
     const currentTouch = touchStateRef.current;
     if (!currentTouch.active) return;
 
@@ -264,6 +354,7 @@ const calmPositions = [
     const maxDownPull = currentTouch.maxDownPull;
 
     setCatapultPull(0);
+    setIsTouchPressing(false);
     resetTouchState();
 
     if (maxDownPull > CATAPULT_THRESHOLD_PX) {
@@ -287,7 +378,9 @@ const calmPositions = [
   };
 
   const handleLogoTouchCancel = () => {
+    if (!isTouchLayout) return;
     setCatapultPull(0);
+    setIsTouchPressing(false);
     resetTouchState();
   };
 
@@ -336,6 +429,67 @@ const calmPositions = [
       resetTouchState();
     };
   }, []);
+
+  useEffect(() => {
+    if (!isTouchLayout) {
+      if (touchPhysicsFrameRef.current) {
+        cancelAnimationFrame(touchPhysicsFrameRef.current);
+        touchPhysicsFrameRef.current = null;
+      }
+      touchPhysicsLastTimeRef.current = null;
+      touchMotionRef.current = { active: false, displacement: 0, velocity: 0 };
+      setGestureForce(0);
+      return;
+    }
+
+    const animate = (timestamp) => {
+      if (!touchPhysicsLastTimeRef.current) {
+        touchPhysicsLastTimeRef.current = timestamp;
+      }
+      const delta = Math.max((timestamp - touchPhysicsLastTimeRef.current) / 1000, 0);
+      touchPhysicsLastTimeRef.current = timestamp;
+      const motion = touchMotionRef.current;
+
+      if (motion.active) {
+        motion.velocity += TOUCH_PHYSICS_CONFIG.gravity * delta;
+        motion.velocity *= Math.pow(TOUCH_PHYSICS_CONFIG.damping, delta * 60);
+        motion.displacement += motion.velocity * delta;
+
+        if (motion.displacement >= TOUCH_PHYSICS_CONFIG.maxLift) {
+          motion.displacement = TOUCH_PHYSICS_CONFIG.maxLift;
+          if (motion.velocity > 0) motion.velocity *= 0.6;
+        }
+
+        if (motion.displacement <= 0) {
+          motion.displacement = 0;
+          motion.velocity = 0;
+          motion.active = false;
+          setGestureForce(0);
+          if (!inspectingRef.current) {
+            setLogoPosition('up');
+          }
+        } else {
+          setGestureForce((prev) =>
+            Math.abs(prev - motion.displacement) < 0.5
+              ? prev
+              : motion.displacement
+          );
+        }
+      }
+
+      touchPhysicsFrameRef.current = requestAnimationFrame(animate);
+    };
+
+    touchPhysicsFrameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (touchPhysicsFrameRef.current) {
+        cancelAnimationFrame(touchPhysicsFrameRef.current);
+        touchPhysicsFrameRef.current = null;
+      }
+      touchPhysicsLastTimeRef.current = null;
+    };
+  }, [isTouchLayout]);
 
   // Smooth speed transitions
   useEffect(() => {
@@ -1121,6 +1275,8 @@ function getRandomArcOffset() {
             catapultPull={catapultPull}
             gestureForce={gestureForce}
             layoutSettings={layoutSettings}
+            isTouchLayout={isTouchLayout}
+            isTouchPressing={isTouchPressing}
           />
 
           {renderInspectionBeam()}
