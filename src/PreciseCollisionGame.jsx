@@ -1,5 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Logo from './Logo';
+import {
+  DEFAULT_CONFIG as DEFAULT_SPRING_CONFIG,
+  createSpringState,
+  getTension,
+  onDrag,
+  onGrab,
+  onRelease,
+  stepSpring,
+} from './physics/rubberBandLogo';
 
 const DEFAULT_LAYOUT = {
   containerHeight: 500,
@@ -37,14 +46,11 @@ const TOUCH_LAYOUT = {
   catapultScaleMultiplier: 1,
 };
 
-const TOUCH_PHYSICS_CONFIG = {
-  gravity: -1600,
-  damping: 0.94,
-  maxLift: 240,
-  minLaunchVelocity: 420,
-  tapLaunchVelocity: 520,
-  maxLaunchVelocity: 820,
-  maxFlickVelocity: 1200,
+const TOUCH_SPRING_TUNING = {
+  k: 190,
+  c: 14,
+  mass: 1,
+  gravity: 820,
 };
 
 const PreciseCollisionGame = () => {
@@ -85,13 +91,10 @@ const PreciseCollisionGame = () => {
   });
   const returnTimeoutRef = useRef(null);
   const inspectingRef = useRef(false);
-  const touchMotionRef = useRef({
-    active: false,
-    displacement: 0,
-    velocity: 0,
-  });
-  const touchPhysicsFrameRef = useRef(null);
-  const touchPhysicsLastTimeRef = useRef(null);
+  const springStateRef = useRef(null);
+  const springConfigRef = useRef(null);
+  const springAnimationRef = useRef(null);
+  const springLastTimeRef = useRef(null);
 
   // Hover & wiggle states
   const [isHovered, setIsHovered] = useState(false);
@@ -103,6 +106,8 @@ const PreciseCollisionGame = () => {
   const [gestureForce, setGestureForce] = useState(0);
   const [isTouchLayout, setIsTouchLayout] = useState(false);
   const [isTouchPressing, setIsTouchPressing] = useState(false);
+  const [springY, setSpringY] = useState(null);
+  const [springTension, setSpringTension] = useState(0);
 
  // Each entry has the same width (80px) and starts at top=170, 
 // just like your click area, but shifted left/right by 80px.
@@ -124,10 +129,6 @@ const calmPositions = [
 
 
   const calmIndexRef = useRef(0);
-  const FLICK_DISTANCE_PX = 28;
-  const FLICK_VELOCITY_PX_PER_MS = 0.65;
-  const CATAPULT_THRESHOLD_PX = 22;
-  const MAX_PULL_PX = 140;
   const layoutSettings = isTouchLayout ? TOUCH_LAYOUT : DEFAULT_LAYOUT;
 
   // Track clicks on "Threats" label for a hidden debug button
@@ -180,82 +181,13 @@ const calmPositions = [
     }, duration);
   };
 
-  const easeOutStrength = (value) => 1 - Math.pow(1 - value, 2.2);
-
-  const startTouchPhysicsLaunch = (initialVelocity) => {
-    if (!gameActive) return;
-    if (autoPilot) setAutoPilot(false);
-    const clampedVelocity = Math.min(
-      Math.max(initialVelocity, TOUCH_PHYSICS_CONFIG.minLaunchVelocity),
-      TOUCH_PHYSICS_CONFIG.maxLaunchVelocity
-    );
-    touchMotionRef.current = {
-      active: true,
-      displacement: 1,
-      velocity: clampedVelocity,
-    };
-    setGestureForce(1);
-    setLogoPosition('down');
-  };
-
   const launchLogoWithForce = ({ impactBoost = 0, hold = 220 } = {}) => {
-    if (isTouchLayout) {
-      startTouchPhysicsLaunch(
-        TOUCH_PHYSICS_CONFIG.tapLaunchVelocity + impactBoost * 2
-      );
-      return;
-    }
+    if (isTouchLayout) return;
     if (!gameActive) return;
     if (autoPilot) setAutoPilot(false);
     setLogoPosition('down');
     setGestureForce(Math.max(0, Math.min(impactBoost, 160)));
     scheduleLogoReset(Math.max(180, hold));
-  };
-
-  const getCatapultLaunchVelocity = (pullStrength) => {
-    const normalizedPull = Math.min(pullStrength / MAX_PULL_PX, 1);
-    const eased = easeOutStrength(normalizedPull);
-    return (
-      TOUCH_PHYSICS_CONFIG.minLaunchVelocity +
-      eased * (TOUCH_PHYSICS_CONFIG.maxLaunchVelocity - TOUCH_PHYSICS_CONFIG.minLaunchVelocity)
-    );
-  };
-
-  const getFlickLaunchVelocity = (velocity = 0.4) => {
-    const pxPerSec = Math.min(
-      Math.abs(velocity) * 1000,
-      TOUCH_PHYSICS_CONFIG.maxFlickVelocity
-    );
-    const normalized = pxPerSec / TOUCH_PHYSICS_CONFIG.maxFlickVelocity;
-    const eased = Math.pow(normalized, 0.65);
-    return (
-      TOUCH_PHYSICS_CONFIG.minLaunchVelocity +
-      eased * (TOUCH_PHYSICS_CONFIG.maxLaunchVelocity - TOUCH_PHYSICS_CONFIG.minLaunchVelocity)
-    );
-  };
-
-  const triggerFlickLaunch = (velocity = 0.4) => {
-    if (isTouchLayout) {
-      startTouchPhysicsLaunch(getFlickLaunchVelocity(velocity));
-      return;
-    }
-    const clampedVelocity = Math.min(Math.max(velocity, 0.3), 2.2);
-    const normalized = Math.pow(clampedVelocity / 2.2, 0.6);
-    const impactBoost = 45 + normalized * 140;
-    const hold = 210 + normalized * 240;
-    launchLogoWithForce({ impactBoost, hold });
-  };
-
-  const triggerCatapultLaunch = (pullStrength) => {
-    if (isTouchLayout) {
-      startTouchPhysicsLaunch(getCatapultLaunchVelocity(pullStrength));
-      return;
-    }
-    const normalizedPull = Math.min(pullStrength / MAX_PULL_PX, 1);
-    const eased = Math.pow(normalizedPull, 0.65);
-    const impactBoost = 55 + eased * 140;
-    const hold = 240 + eased * 240;
-    launchLogoWithForce({ impactBoost, hold });
   };
 
   const resetTouchState = () => {
@@ -265,8 +197,7 @@ const calmPositions = [
       startTime: 0,
       lastY: 0,
       lastTime: 0,
-      maxDownPull: 0,
-      fastestUpwardVelocity: 0,
+      lastVelocity: 0,
     };
     setIsTouchPressing(false);
   };
@@ -281,24 +212,35 @@ const calmPositions = [
     if (inspectingRef.current) return;
     const touch = event.touches[0];
     const now = getNow();
+    const rect = gameAreaRef.current?.getBoundingClientRect();
+    const fingerY = rect ? touch.clientY - rect.top : touch.clientY;
 
-    touchMotionRef.current = {
-      active: false,
-      displacement: 0,
-      velocity: 0,
+    const restY = layoutSettings.logoBaseTopUp;
+    springConfigRef.current = {
+      ...DEFAULT_SPRING_CONFIG,
+      ...TOUCH_SPRING_TUNING,
+      restY,
+      beltY: layoutSettings.beltTop,
+      maxPullDistance: layoutSettings.maxGestureOffset,
     };
+    if (!springStateRef.current) {
+      springStateRef.current = createSpringState(restY);
+    }
+    onGrab(springStateRef.current, springConfigRef.current);
+    onDrag(springStateRef.current, springConfigRef.current, fingerY);
+    setSpringY(springStateRef.current.y);
+    setSpringTension(getTension(springStateRef.current, springConfigRef.current));
     setGestureForce(0);
-    setLogoPosition('up');
+    setCatapultPull(0);
     setIsTouchPressing(true);
 
     touchStateRef.current = {
       active: true,
-      startY: touch.clientY,
+      startY: fingerY,
       startTime: now,
-      lastY: touch.clientY,
+      lastY: fingerY,
       lastTime: now,
-      maxDownPull: 0,
-      fastestUpwardVelocity: 0,
+      lastVelocity: 0,
     };
   };
 
@@ -308,34 +250,23 @@ const calmPositions = [
     if (!currentTouch.active || event.touches.length !== 1) return;
 
     const touch = event.touches[0];
+    const rect = gameAreaRef.current?.getBoundingClientRect();
+    const fingerY = rect ? touch.clientY - rect.top : touch.clientY;
     const now = getNow();
-    const deltaY = touch.clientY - currentTouch.startY;
-    const instantDelta = touch.clientY - currentTouch.lastY;
+    const instantDelta = fingerY - currentTouch.lastY;
     const elapsed = Math.max(now - currentTouch.lastTime, 1);
     const velocity = instantDelta / elapsed;
 
-    currentTouch.lastY = touch.clientY;
+    currentTouch.lastY = fingerY;
     currentTouch.lastTime = now;
+    currentTouch.lastVelocity = velocity;
 
-    if (deltaY > 4) {
-      const pull = Math.min(MAX_PULL_PX, Math.abs(deltaY));
-      currentTouch.maxDownPull = Math.max(currentTouch.maxDownPull, pull);
-      setCatapultPull(pull);
-      event.preventDefault();
-    } else if (catapultPull !== 0) {
-      setCatapultPull(0);
+    if (springStateRef.current && springConfigRef.current) {
+      onDrag(springStateRef.current, springConfigRef.current, fingerY);
+      setSpringY(springStateRef.current.y);
+      setSpringTension(getTension(springStateRef.current, springConfigRef.current));
     }
-
-    if (velocity < 0) {
-      if (!currentTouch.fastestUpwardVelocity) {
-        currentTouch.fastestUpwardVelocity = velocity;
-      } else {
-        currentTouch.fastestUpwardVelocity = Math.min(
-          currentTouch.fastestUpwardVelocity,
-          velocity
-        );
-      }
-    }
+    event.preventDefault();
   };
 
   const handleLogoTouchEnd = () => {
@@ -343,38 +274,12 @@ const calmPositions = [
     const currentTouch = touchStateRef.current;
     if (!currentTouch.active) return;
 
-    const now = getNow();
-    const totalTime = Math.max(now - currentTouch.startTime, 1);
-    const totalDelta = currentTouch.lastY - currentTouch.startY;
-    const avgVelocity = totalDelta / totalTime;
-    const upwardVelocity =
-      currentTouch.fastestUpwardVelocity < 0
-        ? currentTouch.fastestUpwardVelocity
-        : Math.min(avgVelocity, 0);
-    const maxDownPull = currentTouch.maxDownPull;
-
-    setCatapultPull(0);
+    const upwardVelocity = currentTouch.lastVelocity < 0 ? -currentTouch.lastVelocity * 1000 : 0;
+    if (springStateRef.current && springConfigRef.current) {
+      onRelease(springStateRef.current, springConfigRef.current, upwardVelocity);
+    }
     setIsTouchPressing(false);
     resetTouchState();
-
-    if (maxDownPull > CATAPULT_THRESHOLD_PX) {
-      triggerCatapultLaunch(maxDownPull);
-      return;
-    }
-
-    if (
-      totalDelta < -FLICK_DISTANCE_PX ||
-      upwardVelocity < -FLICK_VELOCITY_PX_PER_MS
-    ) {
-      const flickVelocityMagnitude = Math.max(
-        Math.abs(upwardVelocity || avgVelocity),
-        0.35
-      );
-      triggerFlickLaunch(flickVelocityMagnitude);
-      return;
-    }
-
-    launchLogoWithForce({ impactBoost: 24, hold: 220 });
   };
 
   const handleLogoTouchCancel = () => {
@@ -432,64 +337,76 @@ const calmPositions = [
 
   useEffect(() => {
     if (!isTouchLayout) {
-      if (touchPhysicsFrameRef.current) {
-        cancelAnimationFrame(touchPhysicsFrameRef.current);
-        touchPhysicsFrameRef.current = null;
+      if (springAnimationRef.current) {
+        cancelAnimationFrame(springAnimationRef.current);
+        springAnimationRef.current = null;
       }
-      touchPhysicsLastTimeRef.current = null;
-      touchMotionRef.current = { active: false, displacement: 0, velocity: 0 };
+      springLastTimeRef.current = null;
+      springStateRef.current = null;
+      springConfigRef.current = null;
       setGestureForce(0);
+      setSpringY(null);
+      setSpringTension(0);
       return;
     }
 
-    const animate = (timestamp) => {
-      if (!touchPhysicsLastTimeRef.current) {
-        touchPhysicsLastTimeRef.current = timestamp;
-      }
-      const delta = Math.max((timestamp - touchPhysicsLastTimeRef.current) / 1000, 0);
-      touchPhysicsLastTimeRef.current = timestamp;
-      const motion = touchMotionRef.current;
-
-      if (motion.active) {
-        motion.velocity += TOUCH_PHYSICS_CONFIG.gravity * delta;
-        motion.velocity *= Math.pow(TOUCH_PHYSICS_CONFIG.damping, delta * 60);
-        motion.displacement += motion.velocity * delta;
-
-        if (motion.displacement >= TOUCH_PHYSICS_CONFIG.maxLift) {
-          motion.displacement = TOUCH_PHYSICS_CONFIG.maxLift;
-          if (motion.velocity > 0) motion.velocity *= 0.6;
-        }
-
-        if (motion.displacement <= 0) {
-          motion.displacement = 0;
-          motion.velocity = 0;
-          motion.active = false;
-          setGestureForce(0);
-          if (!inspectingRef.current) {
-            setLogoPosition('up');
-          }
-        } else {
-          setGestureForce((prev) =>
-            Math.abs(prev - motion.displacement) < 0.5
-              ? prev
-              : motion.displacement
-          );
-        }
-      }
-
-      touchPhysicsFrameRef.current = requestAnimationFrame(animate);
+    const restY = layoutSettings.logoBaseTopUp;
+    springConfigRef.current = {
+      ...DEFAULT_SPRING_CONFIG,
+      ...TOUCH_SPRING_TUNING,
+      restY,
+      beltY: layoutSettings.beltTop,
+      maxPullDistance: layoutSettings.maxGestureOffset,
     };
 
-    touchPhysicsFrameRef.current = requestAnimationFrame(animate);
+    if (!springStateRef.current) {
+      springStateRef.current = createSpringState(restY);
+    } else {
+      springStateRef.current.y = restY;
+      springStateRef.current.vy = 0;
+      springStateRef.current.anchorY = restY;
+      springStateRef.current.phase = 'idle';
+    }
+
+    setSpringY(restY);
+    setSpringTension(0);
+    springLastTimeRef.current = null;
+
+    const animate = (timestamp) => {
+      if (!springLastTimeRef.current) {
+        springLastTimeRef.current = timestamp;
+      }
+      const delta = Math.max((timestamp - springLastTimeRef.current) / 1000, 0);
+      springLastTimeRef.current = timestamp;
+
+      const phase = stepSpring(
+        springStateRef.current,
+        springConfigRef.current,
+        delta
+      );
+
+      setSpringY(springStateRef.current.y);
+      setSpringTension(getTension(springStateRef.current, springConfigRef.current));
+
+      if (phase === 'hit-belt') {
+        setLogoPosition((prev) => (prev === 'down' ? prev : 'down'));
+      } else if (phase === 'landed' && !inspectingRef.current) {
+        setLogoPosition('up');
+      }
+
+      springAnimationRef.current = requestAnimationFrame(animate);
+    };
+
+    springAnimationRef.current = requestAnimationFrame(animate);
 
     return () => {
-      if (touchPhysicsFrameRef.current) {
-        cancelAnimationFrame(touchPhysicsFrameRef.current);
-        touchPhysicsFrameRef.current = null;
+      if (springAnimationRef.current) {
+        cancelAnimationFrame(springAnimationRef.current);
+        springAnimationRef.current = null;
       }
-      touchPhysicsLastTimeRef.current = null;
+      springLastTimeRef.current = null;
     };
-  }, [isTouchLayout]);
+  }, [isTouchLayout, layoutSettings.logoBaseTopUp, layoutSettings.beltTop, layoutSettings.maxGestureOffset]);
 
   // Smooth speed transitions
   useEffect(() => {
@@ -1277,6 +1194,9 @@ function getRandomArcOffset() {
             layoutSettings={layoutSettings}
             isTouchLayout={isTouchLayout}
             isTouchPressing={isTouchPressing}
+            customTop={isTouchLayout ? springY ?? layoutSettings.logoBaseTopUp : undefined}
+            rubberTension={isTouchLayout ? springTension : 0}
+            disableTouchTransitions={isTouchLayout}
           />
 
           {renderInspectionBeam()}
