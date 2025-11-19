@@ -9,15 +9,18 @@ export const DEFAULT_CONFIG = {
   maxPullDistance: 160,
 };
 
+const DRAG_DEADZONE = 8;
+
 export const createSpringState = (restY) => ({
   y: restY,
   vy: 0,
   anchorY: restY,
   phase: 'idle',
+  grabFingerY: undefined,
 });
 
 export const stepSpring = (state, config, dt) => {
-  if (!state || state.phase === 'idle') return 'idle';
+  if (!state || state.phase === 'idle' || state.phase === 'arming') return 'idle';
 
   const { k, c, mass, gravity } = config;
 
@@ -50,30 +53,40 @@ export const stepSpring = (state, config, dt) => {
   return 'held';
 };
 
-export const onGrab = (state, config) => {
+export const onGrab = (state, config, fingerY) => {
   if (!state) return;
-  state.phase = 'held';
-  state.anchorY = config.restY;
+  state.phase = 'arming';
+  state.grabFingerY = fingerY;
+  state.anchorY = state.y;
+  state.vy = 0;
 };
 
 export const onDrag = (state, config, fingerY) => {
-  if (!state || state.phase !== 'held') return;
-  const pullDown = Math.max(0, fingerY - config.restY);
-  const clampedPull = Math.min(pullDown, config.maxPullDistance);
+  if (!state || (state.phase !== 'arming' && state.phase !== 'held')) return;
+  if (state.grabFingerY == null) state.grabFingerY = fingerY;
 
-  // Asymptotically approach the maximum pull so the band feels tighter
-  // the farther it is dragged. This easing makes it effectively impossible
-  // to reach the exact end of the travel, mimicking a very tense rubber band.
-  const easingStrength = config.maxPullDistance * 0.3;
-  const easedPull =
-    config.maxPullDistance *
-    (1 - 1 / (1 + clampedPull / Math.max(easingStrength, 1)));
+  const totalDrag = fingerY - state.grabFingerY;
+  if (state.phase === 'arming' && totalDrag < DRAG_DEADZONE) return;
 
-  state.anchorY = config.restY + Math.min(easedPull, config.maxPullDistance * 0.995);
+  state.phase = 'held';
+
+  const rawPull = Math.max(0, fingerY - config.restY);
+  const t = Math.min(1, rawPull / config.maxPullDistance);
+  const eased = 1 - Math.pow(1 - t, 3);
+  const effectivePull = eased * config.maxPullDistance;
+
+  state.anchorY = config.restY + effectivePull;
 };
 
 export const onRelease = (state, config, flickVelocity = 0) => {
-  if (!state || state.phase !== 'held') return;
+  if (!state) return;
+  if (state.phase === 'arming') {
+    state.phase = 'idle';
+    state.anchorY = config.restY;
+    state.grabFingerY = undefined;
+    return;
+  }
+  if (state.phase !== 'held') return;
 
   state.phase = 'launched';
   const stretch = Math.max(0, state.y - config.restY);
@@ -84,6 +97,15 @@ export const onRelease = (state, config, flickVelocity = 0) => {
   state.vy -= launchImpulse / Math.max(config.mass, 1);
   if (flickVelocity > 0) state.vy -= flickVelocity;
   state.anchorY = config.restY;
+};
+
+export const resetSpring = (state, config) => {
+  if (!state) return;
+  state.y = config.restY;
+  state.vy = 0;
+  state.anchorY = config.restY;
+  state.phase = 'idle';
+  state.grabFingerY = undefined;
 };
 
 export const getTension = (state, config) => {
