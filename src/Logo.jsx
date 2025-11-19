@@ -16,9 +16,17 @@ const Logo = ({
   logoWidth,
   catapultPull = 0,
   gestureForce = 0,
+  layoutSettings,
 }) => {
-  const baseTop = logoPosition === 'up' ? 180 : 240;
-  const tensionOffset = catapultPull ? -catapultPull * 0.45 : 0;
+  const {
+    logoBaseTopUp = 180,
+    logoBaseTopDown = 240,
+    catapultPullDirection = -1,
+  } = layoutSettings || {};
+  const baseTop = logoPosition === 'up' ? logoBaseTopUp : logoBaseTopDown;
+  const tensionOffset = catapultPull
+    ? catapultPullDirection * catapultPull * 0.45
+    : 0;
   const impactOffset = gestureForce ? Math.min(gestureForce, 130) : 0;
   const topPosition = baseTop + tensionOffset + impactOffset;
   const tensionScale = 1 + (catapultPull ? Math.min(catapultPull, 110) / 300 : 0);
