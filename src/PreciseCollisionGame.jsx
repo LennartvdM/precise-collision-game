@@ -7,6 +7,7 @@ import {
   onDrag,
   onGrab,
   onRelease,
+  resetSpring,
   stepSpring,
 } from './physics/rubberBandLogo';
 
@@ -226,7 +227,7 @@ const calmPositions = [
     if (!springStateRef.current) {
       springStateRef.current = createSpringState(restY);
     }
-    onGrab(springStateRef.current, springConfigRef.current);
+    onGrab(springStateRef.current, springConfigRef.current, fingerY);
     onDrag(springStateRef.current, springConfigRef.current, fingerY);
     setSpringY(springStateRef.current.y);
     setSpringTension(getTension(springStateRef.current, springConfigRef.current));
@@ -286,6 +287,11 @@ const calmPositions = [
     if (!isTouchLayout) return;
     setCatapultPull(0);
     setIsTouchPressing(false);
+    if (springStateRef.current && springConfigRef.current) {
+      resetSpring(springStateRef.current, springConfigRef.current);
+      setSpringY(springStateRef.current.y);
+      setSpringTension(0);
+    }
     resetTouchState();
   };
 
@@ -366,6 +372,7 @@ const calmPositions = [
       springStateRef.current.vy = 0;
       springStateRef.current.anchorY = restY;
       springStateRef.current.phase = 'idle';
+      springStateRef.current.grabFingerY = undefined;
     }
 
     setSpringY(restY);
@@ -385,14 +392,20 @@ const calmPositions = [
         delta
       );
 
-      setSpringY(springStateRef.current.y);
-      setSpringTension(getTension(springStateRef.current, springConfigRef.current));
+      const shouldReset = phase === 'hit-belt' || phase === 'landed';
 
       if (phase === 'hit-belt') {
         setLogoPosition((prev) => (prev === 'down' ? prev : 'down'));
       } else if (phase === 'landed' && !inspectingRef.current) {
         setLogoPosition('up');
       }
+
+      if (shouldReset) {
+        resetSpring(springStateRef.current, springConfigRef.current);
+      }
+
+      setSpringY(springStateRef.current.y);
+      setSpringTension(getTension(springStateRef.current, springConfigRef.current));
 
       springAnimationRef.current = requestAnimationFrame(animate);
     };
