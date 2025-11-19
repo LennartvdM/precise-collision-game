@@ -9,7 +9,16 @@ export const DEFAULT_CONFIG = {
   maxPullDistance: 160,
 };
 
-const DRAG_DEADZONE = 8;
+const clamp01 = (value) => Math.min(1, Math.max(0, value));
+
+// Smooth S-curve that adds reluctance at the start of the pull and
+// asymptotically flattens as you approach the maximum distance.
+const sCurveEase = (t) => {
+  const x = clamp01(t);
+  return x < 0.5
+    ? 4 * Math.pow(x, 3) // ease-in
+    : 1 - Math.pow(-2 * x + 2, 3) / 2; // ease-out
+};
 
 export const createSpringState = (restY) => ({
   y: restY,
@@ -66,13 +75,13 @@ export const onDrag = (state, config, fingerY) => {
   if (state.grabFingerY == null) state.grabFingerY = fingerY;
 
   const totalDrag = fingerY - state.grabFingerY;
-  if (state.phase === 'arming' && totalDrag < DRAG_DEADZONE) return;
-
-  state.phase = 'held';
+  if (state.phase === 'arming') {
+    state.phase = 'held';
+  }
 
   const rawPull = Math.max(0, fingerY - config.restY);
   const t = Math.min(1, rawPull / config.maxPullDistance);
-  const eased = 1 - Math.pow(1 - t, 3);
+  const eased = sCurveEase(t);
   const effectivePull = eased * config.maxPullDistance;
 
   state.anchorY = config.restY + effectivePull;
@@ -87,6 +96,12 @@ export const onRelease = (state, config, flickVelocity = 0) => {
     return;
   }
   if (state.phase !== 'held') return;
+
+  const pulledDistance = Math.max(0, state.anchorY - config.restY);
+  if (pulledDistance < 0.5 && flickVelocity <= 0) {
+    resetSpring(state, config);
+    return;
+  }
 
   state.phase = 'launched';
   const stretch = Math.max(0, state.y - config.restY);
