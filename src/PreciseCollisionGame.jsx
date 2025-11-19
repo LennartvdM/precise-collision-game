@@ -1,6 +1,36 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Logo from './Logo';
 
+const DEFAULT_LAYOUT = {
+  containerHeight: 500,
+  beltTop: 300,
+  packageTrackTop: 290,
+  packageInspectingTop: 320,
+  threatDropTop: 320,
+  inspectionBeamTop: 290,
+  arcTop: 120,
+  logoBaseTopUp: 180,
+  logoBaseTopDown: 240,
+  catapultPullDirection: -1,
+  collisionAreaTop: 170,
+  collisionAreaHeight: 96,
+};
+
+const TOUCH_LAYOUT = {
+  containerHeight: 560,
+  beltTop: 190,
+  packageTrackTop: 180,
+  packageInspectingTop: 210,
+  threatDropTop: 210,
+  inspectionBeamTop: 180,
+  arcTop: 140,
+  logoBaseTopUp: 380,
+  logoBaseTopDown: 440,
+  catapultPullDirection: 1,
+  collisionAreaTop: 160,
+  collisionAreaHeight: 110,
+};
+
 const PreciseCollisionGame = () => {
   // Game state
   const [score, setScore] = useState({ safe: 0, malicious: 0, missed: 0 });
@@ -34,8 +64,8 @@ const PreciseCollisionGame = () => {
     startTime: 0,
     lastY: 0,
     lastTime: 0,
-    maxUpPull: 0,
-    downwardVelocity: 0,
+    maxDownPull: 0,
+    fastestUpwardVelocity: 0,
   });
   const returnTimeoutRef = useRef(null);
   const inspectingRef = useRef(false);
@@ -48,6 +78,7 @@ const PreciseCollisionGame = () => {
   const [floatingHits, setFloatingHits] = useState([]);
   const [catapultPull, setCatapultPull] = useState(0);
   const [gestureForce, setGestureForce] = useState(0);
+  const [isTouchLayout, setIsTouchLayout] = useState(false);
 
  // Each entry has the same width (80px) and starts at top=170, 
 // just like your click area, but shifted left/right by 80px.
@@ -73,6 +104,7 @@ const calmPositions = [
   const FLICK_VELOCITY_PX_PER_MS = 0.65;
   const CATAPULT_THRESHOLD_PX = 22;
   const MAX_PULL_PX = 140;
+  const layoutSettings = isTouchLayout ? TOUCH_LAYOUT : DEFAULT_LAYOUT;
 
   // Track clicks on "Threats" label for a hidden debug button
   const threatsClickRef = useRef(0);
@@ -132,16 +164,18 @@ const calmPositions = [
   };
 
   const triggerFlickLaunch = (velocity = 0.4) => {
-    const clampedVelocity = Math.min(Math.max(velocity, 0.35), 1.8);
-    const impactBoost = 25 + clampedVelocity * 140;
-    const hold = 200 + clampedVelocity * 220;
+    const clampedVelocity = Math.min(Math.max(velocity, 0.3), 2.2);
+    const normalized = Math.pow(clampedVelocity / 2.2, 0.6);
+    const impactBoost = 45 + normalized * 140;
+    const hold = 210 + normalized * 240;
     launchLogoWithForce({ impactBoost, hold });
   };
 
   const triggerCatapultLaunch = (pullStrength) => {
-    const normalized = Math.min(pullStrength / 70, 1.8);
-    const impactBoost = 35 + normalized * 120;
-    const hold = 240 + normalized * 220;
+    const normalizedPull = Math.min(pullStrength / MAX_PULL_PX, 1);
+    const eased = Math.pow(normalizedPull, 0.65);
+    const impactBoost = 55 + eased * 140;
+    const hold = 240 + eased * 240;
     launchLogoWithForce({ impactBoost, hold });
   };
 
@@ -152,8 +186,8 @@ const calmPositions = [
       startTime: 0,
       lastY: 0,
       lastTime: 0,
-      maxUpPull: 0,
-      downwardVelocity: 0,
+      maxDownPull: 0,
+      fastestUpwardVelocity: 0,
     };
   };
 
@@ -173,8 +207,8 @@ const calmPositions = [
       startTime: now,
       lastY: touch.clientY,
       lastTime: now,
-      maxUpPull: 0,
-      downwardVelocity: 0,
+      maxDownPull: 0,
+      fastestUpwardVelocity: 0,
     };
   };
 
@@ -192,20 +226,24 @@ const calmPositions = [
     currentTouch.lastY = touch.clientY;
     currentTouch.lastTime = now;
 
-    if (deltaY < -4) {
+    if (deltaY > 4) {
       const pull = Math.min(MAX_PULL_PX, Math.abs(deltaY));
-      currentTouch.maxUpPull = Math.max(currentTouch.maxUpPull, pull);
+      currentTouch.maxDownPull = Math.max(currentTouch.maxDownPull, pull);
       setCatapultPull(pull);
       event.preventDefault();
     } else if (catapultPull !== 0) {
       setCatapultPull(0);
     }
 
-    if (velocity > 0) {
-      currentTouch.downwardVelocity = Math.max(
-        currentTouch.downwardVelocity,
-        velocity
-      );
+    if (velocity < 0) {
+      if (!currentTouch.fastestUpwardVelocity) {
+        currentTouch.fastestUpwardVelocity = velocity;
+      } else {
+        currentTouch.fastestUpwardVelocity = Math.min(
+          currentTouch.fastestUpwardVelocity,
+          velocity
+        );
+      }
     }
   };
 
@@ -217,29 +255,33 @@ const calmPositions = [
     const totalTime = Math.max(now - currentTouch.startTime, 1);
     const totalDelta = currentTouch.lastY - currentTouch.startY;
     const avgVelocity = totalDelta / totalTime;
-    const downwardVelocity =
-      currentTouch.downwardVelocity > 0
-        ? currentTouch.downwardVelocity
-        : avgVelocity;
-    const maxUpPull = currentTouch.maxUpPull;
+    const upwardVelocity =
+      currentTouch.fastestUpwardVelocity < 0
+        ? currentTouch.fastestUpwardVelocity
+        : Math.min(avgVelocity, 0);
+    const maxDownPull = currentTouch.maxDownPull;
 
     setCatapultPull(0);
     resetTouchState();
 
-    if (maxUpPull > CATAPULT_THRESHOLD_PX) {
-      triggerCatapultLaunch(maxUpPull);
+    if (maxDownPull > CATAPULT_THRESHOLD_PX) {
+      triggerCatapultLaunch(maxDownPull);
       return;
     }
 
     if (
-      totalDelta > FLICK_DISTANCE_PX ||
-      downwardVelocity > FLICK_VELOCITY_PX_PER_MS
+      totalDelta < -FLICK_DISTANCE_PX ||
+      upwardVelocity < -FLICK_VELOCITY_PX_PER_MS
     ) {
-      triggerFlickLaunch(Math.max(downwardVelocity, avgVelocity));
+      const flickVelocityMagnitude = Math.max(
+        Math.abs(upwardVelocity || avgVelocity),
+        0.35
+      );
+      triggerFlickLaunch(flickVelocityMagnitude);
       return;
     }
 
-    launchLogoWithForce({ impactBoost: 18, hold: 210 });
+    launchLogoWithForce({ impactBoost: 24, hold: 220 });
   };
 
   const handleLogoTouchCancel = () => {
@@ -257,6 +299,34 @@ const calmPositions = [
   useEffect(() => {
     inspectingRef.current = inspecting;
   }, [inspecting]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const coarseQuery = window.matchMedia('(pointer: coarse)');
+    const updateLayoutMode = () => {
+      const widthMatch = window.innerWidth <= 1024;
+      const isCoarse = coarseQuery.matches;
+      setIsTouchLayout(widthMatch || isCoarse);
+    };
+
+    updateLayoutMode();
+    window.addEventListener('resize', updateLayoutMode);
+    if (coarseQuery.addEventListener) {
+      coarseQuery.addEventListener('change', updateLayoutMode);
+    } else if (coarseQuery.addListener) {
+      coarseQuery.addListener(updateLayoutMode);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateLayoutMode);
+      if (coarseQuery.removeEventListener) {
+        coarseQuery.removeEventListener('change', updateLayoutMode);
+      } else if (coarseQuery.removeListener) {
+        coarseQuery.removeListener(updateLayoutMode);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -714,13 +784,13 @@ function getRandomArcOffset() {
       if (pkg.status === 'inspecting') {
         return {
           ...styles,
-          top: '320px',
+          top: `${layoutSettings.packageInspectingTop}px`,
           transition: 'top 0.3s cubic-bezier(0.17, 0.67, 0.24, 0.99)',
         };
       } else if (pkg.status === 'safe') {
         return {
           ...styles,
-          top: '290px',
+          top: `${layoutSettings.packageTrackTop}px`,
           transition:
             'background-color 0.3s, top 0.8s cubic-bezier(0.34, 1.1, 0.64, 1.1)',
         };
@@ -730,13 +800,13 @@ function getRandomArcOffset() {
         if (elapsed < 0.15) {
           return {
             ...styles,
-            top: '320px',
+            top: `${layoutSettings.packageInspectingTop}px`,
             transition: 'top 0.15s linear',
           };
         }
         return styles;
       }
-      return { ...styles, top: '290px' };
+      return { ...styles, top: `${layoutSettings.packageTrackTop}px` };
     };
 
     return (
@@ -775,7 +845,7 @@ function getRandomArcOffset() {
         <div
           className="absolute left-1/2 transform -translate-x-1/2 rounded-full bg-purple-300 animate-ping"
           style={{
-            top: '290px',
+            top: `${layoutSettings.inspectionBeamTop}px`,
             width: '20px',
             height: '20px',
             marginLeft: '-10px',
@@ -802,11 +872,12 @@ function getRandomArcOffset() {
           </div>
         </div>
         <div
-          className="absolute h-24 bg-blue-200 opacity-20 pointer-events-none"
+          className="absolute bg-blue-200 opacity-20 pointer-events-none"
           style={{
-            top: '170px',
+            top: `${layoutSettings.collisionAreaTop}px`,
             left: inspectionPoint - logoWidthRef.current / 2,
             width: logoWidthRef.current,
+            height: `${layoutSettings.collisionAreaHeight}px`,
           }}
         >
           <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs bg-white px-2 py-1 rounded shadow-sm whitespace-nowrap">
@@ -820,7 +891,7 @@ function getRandomArcOffset() {
   // Floating hits (SAFE/THREAT arcs, calm notifications)
   const renderFloatingHits = () => {
     const inspectionPoint = logoHitscanRef.current || 0;
-    const arcTopPos = '120px';
+    const arcTopPos = `${layoutSettings.arcTop}px`;
 
     return floatingHits.map((hit) => {
       if (hit.styleType === 'arc') {
@@ -897,8 +968,14 @@ function getRandomArcOffset() {
         .animate-wiggle-inner { animation: wiggleInner 1.1s ease-in-out 1; }
 
         @keyframes fallAnimation {
-          0% { top: 320px; transform: rotate(0deg); }
-          100% { top: 600px; transform: rotate(45deg); }
+          0% {
+            top: var(--threat-drop-top, 320px);
+            transform: rotate(0deg);
+          }
+          100% {
+            top: calc(var(--threat-drop-top, 320px) + 280px);
+            transform: rotate(45deg);
+          }
         }
         .falling-threat { animation: fallAnimation 2s ease-in forwards; }
 
@@ -972,7 +1049,10 @@ function getRandomArcOffset() {
 
       <div
         className="relative w-full max-w-4xl mx-auto bg-gray-50 overflow-hidden"
-        style={{ height: '500px' }}
+        style={{
+          height: `${layoutSettings.containerHeight}px`,
+          '--threat-drop-top': `${layoutSettings.threatDropTop}px`,
+        }}
         ref={gameAreaRef}
       >
         {/* Top-right buttons */}
@@ -1012,7 +1092,7 @@ function getRandomArcOffset() {
                 : 'opacity-100'
             }`}
             style={{
-              top: '300px',
+              top: `${layoutSettings.beltTop}px`,
               transition:
                 'opacity 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), border 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
               left: '50px',
@@ -1038,6 +1118,7 @@ function getRandomArcOffset() {
             logoWidth={logoWidthRef.current}
             catapultPull={catapultPull}
             gestureForce={gestureForce}
+            layoutSettings={layoutSettings}
           />
 
           {renderInspectionBeam()}
