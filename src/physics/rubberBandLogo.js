@@ -60,26 +60,42 @@ export const onDrag = (state, config, fingerY) => {
   if (!state || state.phase !== 'held') return;
   const pullDown = Math.max(0, fingerY - config.restY);
   const clampedPull = Math.min(pullDown, config.maxPullDistance);
-  state.anchorY = config.restY + clampedPull;
+
+  // Asymptotically approach the maximum pull so the band feels tighter
+  // the farther it is dragged. This easing makes it effectively impossible
+  // to reach the exact end of the travel, mimicking a very tense rubber band.
+  const easingStrength = config.maxPullDistance * 0.3;
+  const easedPull =
+    config.maxPullDistance *
+    (1 - 1 / (1 + clampedPull / Math.max(easingStrength, 1)));
+
+  state.anchorY = config.restY + Math.min(easedPull, config.maxPullDistance * 0.995);
 };
 
 export const onRelease = (state, config, flickVelocity = 0) => {
   if (!state || state.phase !== 'held') return;
 
   state.phase = 'launched';
-  const stretch = state.y - config.restY;
-  const anchorBoost = stretch * 1.8;
-  state.anchorY = config.restY - anchorBoost;
+  const stretch = Math.max(0, state.y - config.restY);
+  const launchImpulse = Math.min(stretch, config.maxPullDistance) * 3.2;
 
-  if (flickVelocity > 0) {
-    state.vy -= flickVelocity;
-  }
+  // Apply the launch impulse immediately, then reset the anchor so the band
+  // snaps back on its own without needing another gesture.
+  state.vy -= launchImpulse / Math.max(config.mass, 1);
+  if (flickVelocity > 0) state.vy -= flickVelocity;
+  state.anchorY = config.restY;
 };
 
 export const getTension = (state, config) => {
   if (!state) return 0;
-  const stretch = Math.abs(state.y - state.anchorY);
-  return Math.min(1, stretch / config.maxPullDistance);
+  const stretch = Math.max(0, Math.abs(state.y - state.anchorY));
+  const normalized = Math.min(1, stretch / Math.max(config.maxPullDistance, 1));
+
+  // Bias the curve so tension ramps up sharply near the end of the pull.
+  const curved = Math.pow(normalized, 1.2) * (1 - Math.pow(normalized, 2));
+  const steepRamp = normalized ** 3;
+
+  return Math.min(1, curved + steepRamp);
 };
 
 export const getStretchVector = (state) => ({
