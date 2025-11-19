@@ -6,12 +6,25 @@ const Logo = ({
   wiggleActive,
   autoPilot,
   handleClick,
+  handleTouchStart,
+  handleTouchMove,
+  handleTouchEnd,
+  handleTouchCancel,
   handleMouseEnter,
   handleMouseLeave,
   handleAnimationEnd,
-  logoWidth
+  logoWidth,
+  catapultPull = 0,
+  gestureForce = 0,
 }) => {
-  const scaleValue = isHovered ? 1.15 : 1;
+  const baseTop = logoPosition === 'up' ? 180 : 240;
+  const tensionOffset = catapultPull ? -catapultPull * 0.45 : 0;
+  const impactOffset = gestureForce ? Math.min(gestureForce, 130) : 0;
+  const topPosition = baseTop + tensionOffset + impactOffset;
+  const tensionScale = 1 + (catapultPull ? Math.min(catapultPull, 110) / 300 : 0);
+  const hoverScale = isHovered ? 1.1 : 1;
+  const scaleValue = hoverScale * tensionScale;
+  const shouldDisableTopTransition = catapultPull > 2;
   const isActive = logoPosition === 'down';
   const autoPilotGlow = autoPilot ? 'filter drop-shadow-lg' : '';
 
@@ -20,20 +33,35 @@ const Logo = ({
       style={{
         position: 'absolute',
         left: '50%',
-        top: logoPosition === 'up' ? '180px' : '240px',
+        top: `${topPosition}px`,
         transform: `translateX(-50%) scale(${scaleValue})`,
         transformOrigin: 'center',
-        transition: `
-          top 0.3s cubic-bezier(0.34, 1.76, 0.64, 1.4),
-          transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1.3)
-        `,
+        transition: `${
+          shouldDisableTopTransition
+            ? ''
+            : 'top 0.3s cubic-bezier(0.34, 1.76, 0.64, 1.4), '
+        }transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1.3)`,
         width: `${logoWidth}px`,
         pointerEvents: 'auto',
-        cursor: 'pointer'
+        cursor: 'pointer',
+        touchAction: 'none'
       }}
       onClick={handleClick}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchCancel}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      role="button"
+      aria-label="Launch inspection logo"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          handleClick();
+        }
+      }}
     >
       <div
         className={`relative flex items-center justify-center ${

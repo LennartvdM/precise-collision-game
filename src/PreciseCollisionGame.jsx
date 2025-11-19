@@ -28,6 +28,17 @@ const PreciseCollisionGame = () => {
   const logoWidthRef = useRef(80);
   const logoHitscanRef = useRef(null);
   const packageWidthRef = useRef(48);
+  const touchStateRef = useRef({
+    active: false,
+    startY: 0,
+    startTime: 0,
+    lastY: 0,
+    lastTime: 0,
+    maxUpPull: 0,
+    downwardVelocity: 0,
+  });
+  const returnTimeoutRef = useRef(null);
+  const inspectingRef = useRef(false);
 
   // Hover & wiggle states
   const [isHovered, setIsHovered] = useState(false);
@@ -35,6 +46,8 @@ const PreciseCollisionGame = () => {
 
   // Floating notifications
   const [floatingHits, setFloatingHits] = useState([]);
+  const [catapultPull, setCatapultPull] = useState(0);
+  const [gestureForce, setGestureForce] = useState(0);
 
  // Each entry has the same width (80px) and starts at top=170, 
 // just like your click area, but shifted left/right by 80px.
@@ -56,6 +69,10 @@ const calmPositions = [
 
 
   const calmIndexRef = useRef(0);
+  const FLICK_DISTANCE_PX = 28;
+  const FLICK_VELOCITY_PX_PER_MS = 0.65;
+  const CATAPULT_THRESHOLD_PX = 22;
+  const MAX_PULL_PX = 140;
 
   // Track clicks on "Threats" label for a hidden debug button
   const threatsClickRef = useRef(0);
@@ -89,14 +106,145 @@ const calmPositions = [
     if (hovering) setWiggleActive(true);
   };
 
+  const getNow = () =>
+    typeof performance !== 'undefined' && performance.now
+      ? performance.now()
+      : Date.now();
+
+  const scheduleLogoReset = (duration = 220) => {
+    if (returnTimeoutRef.current) clearTimeout(returnTimeoutRef.current);
+    returnTimeoutRef.current = setTimeout(() => {
+      if (inspectingRef.current) {
+        scheduleLogoReset(120);
+        return;
+      }
+      setGestureForce(0);
+      setLogoPosition('up');
+    }, duration);
+  };
+
+  const launchLogoWithForce = ({ impactBoost = 0, hold = 220 } = {}) => {
+    if (!gameActive) return;
+    if (autoPilot) setAutoPilot(false);
+    setLogoPosition('down');
+    setGestureForce(Math.max(0, Math.min(impactBoost, 160)));
+    scheduleLogoReset(Math.max(180, hold));
+  };
+
+  const triggerFlickLaunch = (velocity = 0.4) => {
+    const clampedVelocity = Math.min(Math.max(velocity, 0.35), 1.8);
+    const impactBoost = 25 + clampedVelocity * 140;
+    const hold = 200 + clampedVelocity * 220;
+    launchLogoWithForce({ impactBoost, hold });
+  };
+
+  const triggerCatapultLaunch = (pullStrength) => {
+    const normalized = Math.min(pullStrength / 70, 1.8);
+    const impactBoost = 35 + normalized * 120;
+    const hold = 240 + normalized * 220;
+    launchLogoWithForce({ impactBoost, hold });
+  };
+
+  const resetTouchState = () => {
+    touchStateRef.current = {
+      active: false,
+      startY: 0,
+      startTime: 0,
+      lastY: 0,
+      lastTime: 0,
+      maxUpPull: 0,
+      downwardVelocity: 0,
+    };
+  };
+
   // Logo click logic
   const handleLogoClick = () => {
-    if (autoPilot) {
-      setAutoPilot(false);
-    } else if (gameActive) {
-      setLogoPosition('down');
-      setTimeout(() => setLogoPosition('up'), 200);
+    launchLogoWithForce({ impactBoost: 18, hold: 210 });
+  };
+
+  const handleLogoTouchStart = (event) => {
+    if (event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    const now = getNow();
+
+    touchStateRef.current = {
+      active: true,
+      startY: touch.clientY,
+      startTime: now,
+      lastY: touch.clientY,
+      lastTime: now,
+      maxUpPull: 0,
+      downwardVelocity: 0,
+    };
+  };
+
+  const handleLogoTouchMove = (event) => {
+    const currentTouch = touchStateRef.current;
+    if (!currentTouch.active || event.touches.length !== 1) return;
+
+    const touch = event.touches[0];
+    const now = getNow();
+    const deltaY = touch.clientY - currentTouch.startY;
+    const instantDelta = touch.clientY - currentTouch.lastY;
+    const elapsed = Math.max(now - currentTouch.lastTime, 1);
+    const velocity = instantDelta / elapsed;
+
+    currentTouch.lastY = touch.clientY;
+    currentTouch.lastTime = now;
+
+    if (deltaY < -4) {
+      const pull = Math.min(MAX_PULL_PX, Math.abs(deltaY));
+      currentTouch.maxUpPull = Math.max(currentTouch.maxUpPull, pull);
+      setCatapultPull(pull);
+      event.preventDefault();
+    } else if (catapultPull !== 0) {
+      setCatapultPull(0);
     }
+
+    if (velocity > 0) {
+      currentTouch.downwardVelocity = Math.max(
+        currentTouch.downwardVelocity,
+        velocity
+      );
+    }
+  };
+
+  const handleLogoTouchEnd = () => {
+    const currentTouch = touchStateRef.current;
+    if (!currentTouch.active) return;
+
+    const now = getNow();
+    const totalTime = Math.max(now - currentTouch.startTime, 1);
+    const totalDelta = currentTouch.lastY - currentTouch.startY;
+    const avgVelocity = totalDelta / totalTime;
+    const downwardVelocity =
+      currentTouch.downwardVelocity > 0
+        ? currentTouch.downwardVelocity
+        : avgVelocity;
+    const maxUpPull = currentTouch.maxUpPull;
+
+    setCatapultPull(0);
+    resetTouchState();
+
+    if (maxUpPull > CATAPULT_THRESHOLD_PX) {
+      triggerCatapultLaunch(maxUpPull);
+      return;
+    }
+
+    if (
+      totalDelta > FLICK_DISTANCE_PX ||
+      downwardVelocity > FLICK_VELOCITY_PX_PER_MS
+    ) {
+      triggerFlickLaunch(Math.max(downwardVelocity, avgVelocity));
+      return;
+    }
+
+    launchLogoWithForce({ impactBoost: 18, hold: 210 });
+  };
+
+  const handleLogoTouchCancel = () => {
+    setCatapultPull(0);
+    resetTouchState();
   };
 
   // Wiggle animation end
@@ -105,6 +253,17 @@ const calmPositions = [
       setWiggleActive(false);
     }
   };
+
+  useEffect(() => {
+    inspectingRef.current = inspecting;
+  }, [inspecting]);
+
+  useEffect(() => {
+    return () => {
+      if (returnTimeoutRef.current) clearTimeout(returnTimeoutRef.current);
+      resetTouchState();
+    };
+  }, []);
 
   // Smooth speed transitions
   useEffect(() => {
@@ -869,10 +1028,16 @@ function getRandomArcOffset() {
             wiggleActive={wiggleActive}
             autoPilot={autoPilot}
             handleClick={handleLogoClick}
+            handleTouchStart={handleLogoTouchStart}
+            handleTouchMove={handleLogoTouchMove}
+            handleTouchEnd={handleLogoTouchEnd}
+            handleTouchCancel={handleLogoTouchCancel}
             handleMouseEnter={() => handleLogoHover(true)}
             handleMouseLeave={() => handleLogoHover(false)}
             handleAnimationEnd={handleWiggleEnd}
             logoWidth={logoWidthRef.current}
+            catapultPull={catapultPull}
+            gestureForce={gestureForce}
           />
 
           {renderInspectionBeam()}
