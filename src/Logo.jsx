@@ -17,27 +17,48 @@ const Logo = ({
   catapultPull = 0,
   gestureForce = 0,
   layoutSettings,
+  isTouchLayout = false,
+  isTouchPressing = false,
 }) => {
   const {
     logoBaseTopUp = 180,
     logoBaseTopDown = 240,
     catapultPullDirection = -1,
     gestureForceDirection = 1,
+    maxGestureOffset = 130,
+    catapultScaleMultiplier = 0.45,
   } = layoutSettings || {};
   const baseTop = logoPosition === 'up' ? logoBaseTopUp : logoBaseTopDown;
   const tensionOffset = catapultPull
-    ? catapultPullDirection * catapultPull * 0.45
+    ? catapultPullDirection * catapultPull * catapultScaleMultiplier
     : 0;
   const impactOffset = gestureForce
-    ? Math.min(gestureForce, 130) * gestureForceDirection
+    ? Math.min(gestureForce, maxGestureOffset) * gestureForceDirection
     : 0;
   const topPosition = baseTop + tensionOffset + impactOffset;
-  const tensionScale = 1 + (catapultPull ? Math.min(catapultPull, 110) / 300 : 0);
-  const hoverScale = isHovered ? 1.1 : 1;
-  const scaleValue = hoverScale * tensionScale;
-  const shouldDisableTopTransition = catapultPull > 2;
+  const tensionScale = !isTouchLayout
+    ? 1 + (catapultPull ? Math.min(catapultPull, 110) / 300 : 0)
+    : 1;
+  const hoverScale = isTouchLayout ? 1 : isHovered ? 1.1 : 1;
+  const pressScale = isTouchLayout && isTouchPressing ? 0.97 : 1;
+  const scaleValue = hoverScale * tensionScale * pressScale;
+  const shouldDisableTopTransition = catapultPull > 2 && !isTouchLayout;
   const isActive = logoPosition === 'down';
   const autoPilotGlow = autoPilot ? 'filter drop-shadow-lg' : '';
+  const baseTransition = isTouchLayout
+    ? 'transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1.3)'
+    : `${
+        shouldDisableTopTransition
+          ? ''
+          : 'top 0.3s cubic-bezier(0.34, 1.76, 0.64, 1.4), '
+      }transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1.3)`;
+  const idleAnimationClass = isTouchLayout
+    ? ''
+    : autoPilot
+    ? 'animate-bob-intense'
+    : !isActive
+    ? 'animate-bob'
+    : '';
 
   return (
     <div
@@ -47,11 +68,7 @@ const Logo = ({
         top: `${topPosition}px`,
         transform: `translateX(-50%) scale(${scaleValue})`,
         transformOrigin: 'center',
-        transition: `${
-          shouldDisableTopTransition
-            ? ''
-            : 'top 0.3s cubic-bezier(0.34, 1.76, 0.64, 1.4), '
-        }transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1.3)`,
+        transition: baseTransition,
         width: `${logoWidth}px`,
         pointerEvents: 'auto',
         cursor: 'pointer',
@@ -80,9 +97,7 @@ const Logo = ({
       }}
     >
       <div
-        className={`relative flex items-center justify-center ${
-          autoPilot ? 'animate-bob-intense' : !isActive ? 'animate-bob' : ''
-        } ${autoPilotGlow}`}
+        className={`relative flex items-center justify-center ${idleAnimationClass} ${autoPilotGlow}`}
         style={{ width: '100%', height: '100%' }}
       >
         <div
