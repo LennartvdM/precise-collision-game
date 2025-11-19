@@ -12,6 +12,7 @@ const DEFAULT_LAYOUT = {
   logoBaseTopUp: 180,
   logoBaseTopDown: 240,
   catapultPullDirection: -1,
+  gestureForceDirection: 1,
   collisionAreaTop: 170,
   collisionAreaHeight: 96,
 };
@@ -27,6 +28,7 @@ const TOUCH_LAYOUT = {
   logoBaseTopUp: 380,
   logoBaseTopDown: 440,
   catapultPullDirection: 1,
+  gestureForceDirection: -1,
   collisionAreaTop: 160,
   collisionAreaHeight: 110,
 };
