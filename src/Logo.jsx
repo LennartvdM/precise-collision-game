@@ -19,6 +19,9 @@ const Logo = ({
   layoutSettings,
   isTouchLayout = false,
   isTouchPressing = false,
+  customTop = null,
+  rubberTension = 0,
+  disableTouchTransitions = false,
 }) => {
   const {
     logoBaseTopUp = 180,
@@ -35,17 +38,22 @@ const Logo = ({
   const impactOffset = gestureForce
     ? Math.min(gestureForce, maxGestureOffset) * gestureForceDirection
     : 0;
-  const topPosition = baseTop + tensionOffset + impactOffset;
+  const topPosition =
+    customTop !== null && customTop !== undefined
+      ? customTop
+      : baseTop + tensionOffset + impactOffset;
   const tensionScale = !isTouchLayout
     ? 1 + (catapultPull ? Math.min(catapultPull, 110) / 300 : 0)
-    : 1;
+    : 1 + rubberTension * 0.08;
   const hoverScale = isTouchLayout ? 1 : isHovered ? 1.1 : 1;
   const pressScale = isTouchLayout && isTouchPressing ? 0.97 : 1;
   const scaleValue = hoverScale * tensionScale * pressScale;
   const shouldDisableTopTransition = catapultPull > 2 && !isTouchLayout;
   const isActive = logoPosition === 'down';
   const autoPilotGlow = autoPilot ? 'filter drop-shadow-lg' : '';
-  const baseTransition = isTouchLayout
+  const baseTransition = disableTouchTransitions
+    ? 'none'
+    : isTouchLayout
     ? 'transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1.3)'
     : `${
         shouldDisableTopTransition
