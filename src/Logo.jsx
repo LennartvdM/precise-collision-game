@@ -44,8 +44,13 @@ const Logo = ({
         width: `${logoWidth}px`,
         pointerEvents: 'auto',
         cursor: 'pointer',
-        touchAction: 'none'
+        touchAction: 'none',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        MozUserSelect: 'none',
+        msUserSelect: 'none'
       }}
+      draggable={false}
       onClick={handleClick}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
