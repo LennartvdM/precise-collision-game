@@ -9,15 +9,18 @@ export const DEFAULT_CONFIG = {
   maxPullDistance: 160,
 };
 
-const clamp01 = (value) => Math.min(1, Math.max(0, value));
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
-// Smooth S-curve that adds reluctance at the start of the pull and
-// asymptotically flattens as you approach the maximum distance.
-const sCurveEase = (t) => {
-  const x = clamp01(t);
-  return x < 0.5
-    ? 4 * Math.pow(x, 3) // ease-in
-    : 1 - Math.pow(-2 * x + 2, 3) / 2; // ease-out
+// Rational curve with a strictly decreasing slope: every extra pixel of
+// finger pull yields less stretch than the previous one.
+const rubberBandMapping = (rawPull, maxPull) => {
+  const t = clamp(rawPull / Math.max(maxPull, 1), 0, 1);
+
+  const GAIN = 0.6; // Maximum fraction of maxPull reachable at full drag
+  const STIFFNESS = 4; // Higher = tightens faster as you pull farther
+
+  const fraction = (GAIN * t) / (1 + STIFFNESS * t);
+  return maxPull * fraction;
 };
 
 export const createSpringState = (restY) => ({
@@ -29,7 +32,7 @@ export const createSpringState = (restY) => ({
 });
 
 export const stepSpring = (state, config, dt) => {
-  if (!state || state.phase === 'idle' || state.phase === 'arming') return 'idle';
+  if (!state || state.phase === 'idle') return 'idle';
 
   const { k, c, mass, gravity } = config;
 
@@ -64,37 +67,24 @@ export const stepSpring = (state, config, dt) => {
 
 export const onGrab = (state, config, fingerY) => {
   if (!state) return;
-  state.phase = 'arming';
+  state.phase = 'held';
   state.grabFingerY = fingerY;
   state.anchorY = state.y;
   state.vy = 0;
 };
 
 export const onDrag = (state, config, fingerY) => {
-  if (!state || (state.phase !== 'arming' && state.phase !== 'held')) return;
+  if (!state || state.phase !== 'held') return;
   if (state.grabFingerY == null) state.grabFingerY = fingerY;
 
-  const totalDrag = fingerY - state.grabFingerY;
-  if (state.phase === 'arming') {
-    state.phase = 'held';
-  }
-
   const rawPull = Math.max(0, fingerY - config.restY);
-  const t = Math.min(1, rawPull / config.maxPullDistance);
-  const eased = sCurveEase(t);
-  const effectivePull = eased * config.maxPullDistance;
+  const effectivePull = rubberBandMapping(rawPull, config.maxPullDistance);
 
   state.anchorY = config.restY + effectivePull;
 };
 
 export const onRelease = (state, config, flickVelocity = 0) => {
   if (!state) return;
-  if (state.phase === 'arming') {
-    state.phase = 'idle';
-    state.anchorY = config.restY;
-    state.grabFingerY = undefined;
-    return;
-  }
   if (state.phase !== 'held') return;
 
   const pulledDistance = Math.max(0, state.anchorY - config.restY);
